@@ -25,11 +25,25 @@ class belongs_to(object):
         klass.__bases__ += (Association, )
         return klass
 
-# TODO fully implement
 # Currently exists only so that all models get registered
 class has_many(object):
-    def __init__(self, child_name):
+    def __init__(self, child_name, foreign_key=None):
         self.child_name = child_name
+        self.foreign_key = foreign_key
     def __call__(self, klass):
+        # if no foreign key was passed, we should calculate it now based on
+        # the class name
+        self.foreign_key = self.foreign_key or "{name}_id".format(
+            name=query.Query.table_name(klass)[:-1])
         models[klass.__name__] = klass
+        def child_records_method(wrapped_obj):
+            child = model_from_name(self.child_name[:-1])
+            q = query.Query(child)
+            where_statement = {self.foreign_key: wrapped_obj.id}
+            return q.where(**where_statement)
+        child_records_method.__name__ = self.child_name
+        class Association(object):
+            pass
+        setattr(Association, self.child_name, child_records_method)
+        klass.__bases__ += (Association, )
         return klass
