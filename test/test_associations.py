@@ -23,7 +23,7 @@ class Comment(Base):
         return super(Comment, self).post() + " & that"
 
 @belongs_to("comment")
-@belongs_to("post")
+@belongs_to("post", foreign_key="postId")
 class TestModel(Base):
     pass
 
@@ -65,7 +65,7 @@ class TestBelongsTo(unittest.TestCase):
     @mock.patch("lazy_record.associations.query")
     def test_multiple_makes_correct_queries(self, query):
         test_model = TestModel()
-        test_model.post_id = 1
+        test_model.postId = 1
         test_model.comment_id = 17
         query.Query.table_name.side_effect = ["posts", "comments"]
         q = query.Query.return_value
