@@ -8,6 +8,7 @@ class Base(object): pass
 
 @has_many("comments")
 @has_many("test_models", foreign_key="postId")
+@has_many("tags", through="taggings")
 class Post(Base):
     def comments(self):
         return super(Post, self).comments() + " & that"
@@ -30,6 +31,14 @@ class Comment(Base):
 class TestModel(Base):
     pass
 
+@belongs_to("post")
+@belongs_to("tag")
+class Tagging(Base):
+    pass
+@has_many("posts", through="taggings")
+class Tag(Base):
+    pass
+
 class TestBelongsTo(unittest.TestCase):
     def setUp(self):
         self.comment = Comment()
@@ -46,7 +55,6 @@ class TestBelongsTo(unittest.TestCase):
 
     @mock.patch("lazy_record.associations.query")
     def test_makes_query_for_related_object(self, query):
-        query.Query.table_name.return_value = "posts"
         self.comment.post()
         query.Query.assert_called_with(Post)
         q = query.Query.return_value
@@ -70,7 +78,6 @@ class TestBelongsTo(unittest.TestCase):
         test_model = TestModel()
         test_model.postId = 1
         test_model.comment_id = 17
-        query.Query.table_name.side_effect = ["posts", "comments"]
         q = query.Query.return_value
         q2 = q.where.return_value
         # Test the first
@@ -86,7 +93,6 @@ class TestBelongsTo(unittest.TestCase):
 
     @mock.patch("lazy_record.associations.query")
     def test_allows_overloading_of_parent_method(self, query):
-        query.Query.table_name.return_value = "posts"
         q = query.Query.return_value
         q2 = q.where.return_value
         q2.first.return_value = "this"
@@ -108,7 +114,6 @@ class TestHasMany(unittest.TestCase):
 
     @mock.patch("lazy_record.associations.query")
     def test_makes_query_for_related_object(self, query):
-        query.Query.table_name.return_value = "test_models"
         self.post.test_models()
         query.Query.assert_called_with(TestModel)
         q = query.Query.return_value
@@ -126,7 +131,6 @@ class TestHasMany(unittest.TestCase):
 
     @mock.patch("lazy_record.associations.query")
     def test_multiple_makes_correct_queries(self, query):
-        query.Query.table_name.side_effect = ["comments", "test_models"]
         q = query.Query.return_value
         # Test the first
         self.post.comments()
@@ -143,6 +147,20 @@ class TestHasMany(unittest.TestCase):
         q = query.Query.return_value
         q.where.return_value = "this"
         self.assertEqual("this & that", self.post.comments())
+
+class TestHasManyThrough(unittest.TestCase):
+    def setUp(self):
+        self.post = Post()
+        self.post.id = 11
+
+    @mock.patch("lazy_record.associations.query")
+    def test_makes_query_for_related_objects(self, query):
+        self.post.tags()
+        query.Query.assert_called_with(Tag)
+        q = query.Query.return_value
+        q.joins.assert_called_with("taggings")
+        q2 = q.joins.return_value
+        q2.where.assert_called_once_with(taggings=dict(post_id=11))
 
 if __name__ == '__main__':
     unittest.main()

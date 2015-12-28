@@ -3,12 +3,20 @@ import re
 
 class Query(object):
     db = None
+    echo_commands = False
 
     def __init__(self, model):
         self.model = model
         self.where_query = {}
-        self.attributes = ["id", "created_at"] + \
+        self.joiners = []
+        attributes = ["id", "created_at"] + \
             list(self.model.__attributes__)
+        self.attributes = [
+            "{table}.{attr}".format(
+                table=Query.table_name(self.model),
+                attr=attr
+            ) for attr in attributes
+        ]
 
     def all(self):
         return self
@@ -23,24 +31,53 @@ class Query(object):
             self.where_query[attr] = value
         return self
 
+    def joins(self, table):
+        self.joiners.insert(0, table)
+        return self
+
+    def _build_where(self):
+        def builder(where_dict, default_table):
+            for key, value in where_dict.items():
+                if type(value) is dict:
+                    for entry in builder(value, key):
+                        yield entry
+                else:
+                    yield (default_table, key, value)
+        return list(builder(self.where_query, Query.table_name(self.model)))
+
     def _do_query(self):
         if self.where_query:
-            ordered_items = list(self.where_query.items())
+            ordered_items = self._build_where()
             where_clause = "where {query}".format(
                 query = " and ".join("{table}.{attr} == ?".format(
-                    table = Query.table_name(self.model),
-                    attr = pair[0]
+                    table = pair[0],
+                    attr = pair[1]
                 ) for pair in ordered_items)
             )
         else:
             ordered_items = []
             where_clause = ""
-        cmd = 'select {attrs} from {table} {where_clause}'.format(
+        if self.joiners:
+            # currently only supports 1 deep
+            # looking for what multiple deep would mean
+            join_clause = ("inner join {joined_table} on "
+                           "{joined_table}.{our_record}_id == "
+                           "{our_table}.id ").format(
+                               joined_table = self.joiners[0],
+                               our_record = Query.table_name(self.model)[:-1],
+                               our_table = Query.table_name(self.model)
+                           )
+        else:
+            join_clause = ""
+        cmd = 'select {attrs} from {table} {join_clause}{where_clause}'.format(
             table = Query.table_name(self.model),
             attrs = ", ".join(self.attributes),
-            where_clause = where_clause
+            where_clause = where_clause,
+            join_clause = join_clause
         ).rstrip()
-        return Query.db.execute(cmd, [pair[1] for pair in ordered_items])
+        if Query.echo_commands:
+            print "SQL:", cmd, tuple(pair[2] for pair in ordered_items)
+        return Query.db.execute(cmd, [pair[2] for pair in ordered_items])
 
     def __iter__(self):
         result = self._do_query().fetchall()
