@@ -9,13 +9,13 @@ class Query(object):
         self.model = model
         self.where_query = {}
         self.joiners = []
-        attributes = ["id", "created_at"] + \
+        self.attributes = ["id", "created_at"] + \
             list(self.model.__attributes__)
-        self.attributes = [
+        self.db_attributes = [
             "{table}.{attr}".format(
                 table=Query.table_name(self.model),
                 attr=attr
-            ) for attr in attributes
+            ) for attr in self.attributes
         ]
 
     def all(self):
@@ -23,6 +23,8 @@ class Query(object):
 
     def first(self):
         record = self._do_query().fetchone()
+        if not record:
+            return None
         args = dict(zip(self.attributes, record))
         return self.model.from_dict(**args)
 
@@ -71,7 +73,7 @@ class Query(object):
             join_clause = ""
         cmd = 'select {attrs} from {table} {join_clause}{where_clause}'.format(
             table = Query.table_name(self.model),
-            attrs = ", ".join(self.attributes),
+            attrs = ", ".join(self.db_attributes),
             where_clause = where_clause,
             join_clause = join_clause
         ).rstrip()
@@ -86,9 +88,8 @@ class Query(object):
             yield self.model.from_dict(**args)
 
     def __repr__(self):
-        return "<{name}({model}):{records}>".format(
+        return "<{name} {records}>".format(
             name="lazy_record.Query",
-            model=self.model.__name__,
             records=list(self)
         )
 
