@@ -1,4 +1,5 @@
 import query
+import repo
 models = {}
 
 def model_from_name(parent_name):
@@ -35,7 +36,7 @@ class has_many(object):
         # if no foreign key was passed, we should calculate it now based on
         # the class name
         self.foreign_key = self.foreign_key or "{name}_id".format(
-            name=query.Query.table_name(klass)[:-1])
+            name=repo.Repo.table_name(klass)[:-1])
         models[klass.__name__] = klass
         if self.through:
             # Do the query with a join
