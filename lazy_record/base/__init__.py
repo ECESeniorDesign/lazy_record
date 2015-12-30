@@ -2,10 +2,11 @@ from query import Query
 from repo import Repo
 import datetime
 from errors import *
+import query_methods
+from validations import Validations
 
-class Base(object):
+class Base(query_methods.QueryMethods, Validations):
     __attributes__ = {}
-    __validates__ = {}
     def __init__(self, **kwargs):
         if set(["id", "created_at"]) & set(kwargs):
             raise AttributeError("Cannot set 'id' or 'created_at'")
@@ -65,44 +66,6 @@ class Base(object):
             self._created_at = datetime.date.today()
             data = { attr: getattr(self, attr) for attr in attrs }
             self._id = int(Repo(self.__table).insert(**data))
-
-    def validate(self):
-        reason = {}
-        valid = True
-        for attr, validation in self.__class__.__validates__.items():
-            if not validation(getattr(self, attr)):
-                reason[attr] = getattr(self, attr)
-                valid = False
-        if not valid:
-            raise RecordInvalid(reason)
-
-    @classmethod
-    def find(cls, id):
-        result = Query(cls).where(id=id).first()
-        if result:
-            return result
-        else:
-            raise RecordNotFound({'id': id})
-
-    @classmethod
-    def find_by(cls, **kwargs):
-        result = Query(cls).where(**kwargs).first()
-        if result:
-            return result
-        else:
-            raise RecordNotFound(kwargs)
-
-    @classmethod
-    def all(cls):
-        return Query(cls).all()
-
-    @classmethod
-    def where(cls, **kwargs):
-        return Query(cls).where(**kwargs)
-
-    @classmethod
-    def joins(cls, table):
-        return Query(cls).joins(table)
 
     def __repr__(self):
         return "{}({})".format(

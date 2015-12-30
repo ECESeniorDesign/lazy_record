@@ -18,7 +18,7 @@ class MyModel(Base):
 
 @mock.patch("base.datetime")
 @mock.patch("base.Repo")
-@mock.patch("base.Query")
+@mock.patch("base.query_methods.Query")
 class TestBase(unittest.TestCase):
     def test_creates_records(self, Query, Repo, datetime):
         Repo.table_name.return_value = "my_model"
