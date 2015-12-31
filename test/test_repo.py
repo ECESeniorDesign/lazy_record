@@ -3,16 +3,16 @@ import mock
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
-from lazy_record import Repo
 sys.path.append(os.path.join(
     os.path.dirname(os.path.abspath(os.path.dirname(__file__))),
     "lazy_record"))
+from repo import Repo
 import repo
 
 class TunaCasserole(object):
     pass
 
-@mock.patch("lazy_record.Repo.db")
+@mock.patch("repo.Repo.db")
 class TestRepo(unittest.TestCase):
     def test_gets_table_name(self, _):
         self.assertEqual("tuna_casseroles",

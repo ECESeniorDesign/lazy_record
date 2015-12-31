@@ -1,10 +1,13 @@
 __author__ = "Chase Conklin"
 
 from query import Query
-del query
 from repo import Repo
-del repo
 from base import Base
-del base
 from exceptions import *
 from types import *
+
+def connect_db(database_name=":memory:"):
+    db = repo.Repo.connect_db(database_name)
+    base.Repo.db = db
+    query.Repo.db = db
+    Repo.db = db

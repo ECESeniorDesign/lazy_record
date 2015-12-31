@@ -10,6 +10,10 @@ from query import Query, Repo
 class TunaCasserole(object):
     __attributes__ = {"my_attr": int}
 
+    def __init__(self, **kwargs):
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+
     @classmethod
     def from_dict(TunaCasserole, **kwargs):
         return "mytestvalue"
@@ -76,6 +80,14 @@ class TestQuery(unittest.TestCase):
         join = repo.inner_join.return_value
         join.select.assert_called_with(
             "id", "created_at", "my_attr")
+
+    def test_builds_simple_related_records(self, Repo):
+        record = Query(TunaCasserole).where(my_attr = 11).build()
+        self.assertEqual(record.my_attr, 11)
+
+    def test_builds_simple_related_records_with_args(self, Repo):
+        record = Query(TunaCasserole).where(my_attr = 11).build(my_attr=12)
+        self.assertEqual(record.my_attr, 12)
 
 if __name__ == '__main__':
     unittest.main()

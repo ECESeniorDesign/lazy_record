@@ -113,4 +113,5 @@ class Repo(object):
     def connect_db(Repo, database=":memory:"):
         Repo.db = sqlite3.connect(database,
             detect_types=sqlite3.PARSE_DECLTYPES)
+        return Repo.db
     

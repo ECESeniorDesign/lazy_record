@@ -51,6 +51,11 @@ class Query(object):
             records=list(self)
         )
 
+    def build(self, **kwargs):
+        build_args = dict(self.where_query)
+        build_args.update(kwargs)
+        return self.model(**build_args)
+
     class __metaclass__(type):
         def __repr__(self):
             return "<class 'lazy_record.Query'>"
