@@ -11,6 +11,7 @@ from validations import Validations
 class Base(query_methods.QueryMethods, Validations):
     __attributes__ = {}
     __foreign_keys__ = {}
+    __dependents__ = []
     def __init__(self, **kwargs):
         if set(["id", "created_at"]) & set(kwargs):
             raise AttributeError("Cannot set 'id' or 'created_at'")
@@ -59,6 +60,14 @@ class Base(query_methods.QueryMethods, Validations):
     def delete(self):
         if self.id:
             Repo(self.__table).where(id=self.id).delete()
+            Repo.db.commit()
+
+    def destroy(self):
+        if self.id:
+            Repo(self.__table).where(id=self.id).delete()
+            for dependent in set(self.__class__.__dependents__):
+                for record in getattr(self, dependent)():
+                    record.destroy()
             Repo.db.commit()
 
     def _do_save(self):

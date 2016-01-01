@@ -8,6 +8,7 @@ sys.path.append(os.path.join(
     "lazy_record"))
 from lazy_record.associations import *
 class Base(object):
+    __dependents__ = []
     __attributes__ = {}
     __foreign_keys__ = {}
 
@@ -107,6 +108,9 @@ class TestBelongsTo(unittest.TestCase):
         self.assertEqual(TestModel.__attributes__["postId"], int)
         self.assertEqual(Comment.__attributes__["post_id"], int)
 
+    def test_does_not_add_parent_as_dependents(self):
+        self.assertNotIn("post", Comment.__dependents__)
+
 class TestHasMany(unittest.TestCase):
     def setUp(self):
         self.post = Post()
@@ -157,6 +161,9 @@ class TestHasMany(unittest.TestCase):
         q.where.return_value = "this"
         self.assertEqual("this & that", self.post.comments())
 
+    def test_adds_children_as_dependents_when_not_joined(self):
+        self.assertIn("comments", Post.__dependents__)
+
 class TestHasManyThrough(unittest.TestCase):
     def setUp(self):
         self.post = Post()
@@ -170,6 +177,12 @@ class TestHasManyThrough(unittest.TestCase):
         q.joins.assert_called_with("taggings")
         q2 = q.joins.return_value
         q2.where.assert_called_once_with(taggings=dict(post_id=11))
+
+    def test_adds_joining_table_as_dependent(self):
+        self.assertIn("taggings", Post.__dependents__)
+
+    def test_adds_methods_for_joining_table(self):
+        assert hasattr(self.post, "taggings")
 
 if __name__ == '__main__':
     unittest.main()

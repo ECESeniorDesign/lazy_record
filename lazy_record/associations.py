@@ -44,6 +44,12 @@ class has_many(object):
         models[klass.__name__] = klass
         klass.__foreign_keys__[self.child_name] = self.foreign_key
         if self.through:
+            klass.__dependents__ = klass.__dependents__ + [self.through]
+        else:
+            klass.__dependents__ = klass.__dependents__ + [self.child_name]
+        class Association(object):
+            pass
+        if self.through:
             # Do the query with a join
             def child_records_method(wrapped_obj):
                 child = model_from_name(self.child_name[:-1])
@@ -51,6 +57,12 @@ class has_many(object):
                 where_statement = {self.through:
                     {self.foreign_key: wrapped_obj.id}}
                 return q.where(**where_statement)
+            # define the method for the through
+            def through_records_method(wrapped_obj):
+                through = model_from_name(self.through[:-1])
+                return query.Query(through, record=wrapped_obj).where(
+                    **{self.foreign_key: wrapped_obj.id})
+            setattr(Association, self.through, through_records_method)
         else:
             # Don't do a join
             def child_records_method(wrapped_obj):
@@ -59,8 +71,6 @@ class has_many(object):
                 where_statement = {self.foreign_key: wrapped_obj.id}
                 return q.where(**where_statement)
         child_records_method.__name__ = self.child_name
-        class Association(object):
-            pass
         setattr(Association, self.child_name, child_records_method)
         klass.__bases__ += (Association, )
         return klass

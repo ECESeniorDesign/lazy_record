@@ -15,6 +15,8 @@ class MyModel(Base):
     __validates__ = {
         "name": lambda name: name != "invalid"
     }
+    def my_childs():
+        pass
 
 @mock.patch("base.datetime")
 @mock.patch("base.Repo")
@@ -142,6 +144,34 @@ class TestBase(unittest.TestCase):
     def test_forbits_instantiation_with_created_at(self, Query, Repo, datetime):
         with self.assertRaises(AttributeError):
             MyModel(created_at=3)
+
+@mock.patch("base.Repo")
+class TestBaseDestroy(unittest.TestCase):
+    def setUp(self):
+        self.my_model = MyModel(name="hi")
+        self.my_model._id = 5
+
+    def test_deletes_without_dependents(self, Repo):
+        self.my_model.destroy()
+        Repo.assert_called_once_with("my_models")
+        repo = Repo.return_value
+        repo.where.assert_called_once_with(id=5)
+        where = repo.where.return_value
+        where.delete.assert_called_once_with()
+
+    @mock.patch.object(MyModel, "__dependents__", new=["my_childs"])
+    def test_deletes_dependents(self, Repo):
+        with mock.patch.object(self.my_model, "my_childs") as my_childs:
+            child = mock.Mock()
+            my_childs.return_value.__iter__.return_value = [child]
+            self.my_model.destroy()
+            my_childs.assert_called_with()
+            child.destroy.assert_called_with()
+            Repo.assert_called_with("my_models")
+            repo = Repo.return_value
+            repo.where.assert_called_with(id=5)
+            where = repo.where.return_value
+            where.delete.assert_called_with()
 
 if __name__ == '__main__':
     unittest.main()

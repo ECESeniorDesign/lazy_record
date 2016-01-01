@@ -65,7 +65,25 @@ class TestBuildingRecordsThroughJoin(unittest.TestCase):
         assert (book.id in [b.id for b in self.person.books()])
         assert (self.person.id in [p.id for p in book.persons()])
 
-# TODO deleting records through join
+class TestDestroyingRecordsThroughJoin(unittest.TestCase):
+    def setUp(self):
+        lazy_record.connect_db()
+        lazy_record.Repo.db.executescript(test_schema)
+        lazy_record.Repo.db.commit()
+        self.person = Person()
+        self.person.save()
+        self.book = Book()
+        self.book.save()
+        Lending(person_id=self.person.id, book_id=self.book.id).save()
+
+    def test_deletes_only_join_record(self):
+        self.person.destroy()
+        # Test that the relationship is gone
+        assert len(list(self.person.books())) == 0, \
+        "Expected self.person.books() to be empty, "
+        "but it had count {}".format(len(list(self.person.books())))
+        # test that the book still exists
+        assert Book.find(self.book.id).id == self.book.id
 
 if __name__ == '__main__':
     unittest.main()
