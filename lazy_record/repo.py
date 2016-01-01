@@ -12,10 +12,11 @@ class Repo(object):
         self.where_clause = ""
         self.where_values = []
         self.inner_join_table = None
+        self.order_clause = ""
 
     def where(self, **restrictions):
         ordered_items = self._build_where(restrictions)
-        self.where_clause = "where {query}".format(
+        self.where_clause = "where {query} ".format(
             query = " and ".join("{table}.{attr} == ?".format(
                 table = pair[0],
                 attr = pair[1]
@@ -40,6 +41,12 @@ class Repo(object):
         self.local_on = on[1]
         return self
 
+    def order_by(self, **kwargs):
+        col, order = kwargs.popitem()
+        self.order_clause = "order by {col} {order} ".format(
+            col=col, order=order)
+        return self
+
     @property
     def join_clause(self):
         if self.inner_join_table:
@@ -59,11 +66,12 @@ class Repo(object):
             "{table}.{attr}".format(table=self.table_name, attr=attr)
             for attr in attributes
         ]
-        cmd = 'select {attrs} from {table} {join_clause}{where_clause}'.format(
+        cmd = 'select {attrs} from {table} {join_clause}{where_clause}{order_clause}'.format(
             table = self.table_name,
             attrs = ", ".join(namespaced_attributes),
             where_clause = self.where_clause,
-            join_clause = self.join_clause
+            join_clause = self.join_clause,
+            order_clause= self.order_clause,
         ).rstrip()
         return Repo.db.execute(cmd, self.where_values)
 

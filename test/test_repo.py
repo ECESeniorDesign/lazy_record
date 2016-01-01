@@ -104,6 +104,12 @@ class TestRepo(unittest.TestCase):
         db.execute.assert_called_once_with(
             "delete from tuna_casseroles where tuna_casseroles.id == ?", [11])
 
+    def test_orders_records(self, db):
+        Repo("tuna_casseroles").order_by(id="desc").select("id", "created_at")
+        db.execute.assert_called_once_with(
+            "select tuna_casseroles.id, tuna_casseroles.created_at from "
+            "tuna_casseroles order by id desc", [])
+
 if __name__ == '__main__':
     unittest.main()
 

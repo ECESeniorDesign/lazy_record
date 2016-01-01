@@ -145,6 +145,18 @@ class TestBase(unittest.TestCase):
         with self.assertRaises(AttributeError):
             MyModel(created_at=3)
 
+    def test_gets_first_record(self, Query, Repo, datetime):
+        MyModel.first()
+        Query.assert_called_once_with(MyModel)
+        query = Query.return_value
+        query.first.assert_called_with()
+
+    def test_gets_last_record(self, Query, Repo, datetime):
+        MyModel.last()
+        Query.assert_called_once_with(MyModel)
+        query = Query.return_value
+        query.last.assert_called_with()
+
 @mock.patch("base.Repo")
 class TestBaseDestroy(unittest.TestCase):
     def setUp(self):

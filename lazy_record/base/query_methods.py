@@ -28,4 +28,11 @@ class QueryMethods(object):
     @classmethod
     def joins(cls, table):
         return Query(cls).joins(table)
-    
+
+    @classmethod
+    def first(cls):
+        return Query(cls).first()
+
+    @classmethod
+    def last(cls):
+        return Query(cls).last()

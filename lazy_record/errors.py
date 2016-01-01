@@ -3,3 +3,6 @@ class RecordNotFound(Exception):
 
 class RecordInvalid(Exception):
     pass
+
+class QueryInvalid(Exception):
+    pass

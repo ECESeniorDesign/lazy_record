@@ -1,5 +1,6 @@
 from repo import Repo
 import associations
+from errors import *
 
 class Query(object):
 
@@ -8,6 +9,7 @@ class Query(object):
         self.record = record
         self.where_query = {}
         self.join_table = None
+        self._order_with = {}
         self.attributes = ["id", "created_at"] + \
             list(self.model.__attributes__)
         self.table = Repo.table_name(self.model)
@@ -21,6 +23,25 @@ class Query(object):
             return None
         args = dict(zip(self.attributes, record))
         return self.model.from_dict(**args)
+
+    def last(self):
+        if self._order_with:
+            order = self._order_with.values()[0]
+            order = "desc" if order == "asc" else "asc"
+            order_with = self._order_with
+            self._order_with = None
+            result = self.order_by(**{order_with.keys()[0]: order}).first()
+            self._order_with = order_with
+            return result
+        else:
+            return self.order_by(id="desc").first()
+
+    def order_by(self, **kwargs):
+        # Only get one thing from kwargs (we can only order by one thing...)
+        if self._order_with:
+            raise QueryInvalid("Cannot order by more than one column")
+        self._order_with = dict([kwargs.popitem()])
+        return self
 
     def where(self, **restrictions):
         for attr, value in restrictions.items():
@@ -38,6 +59,8 @@ class Query(object):
         if self.join_table:
             repo = repo.inner_join(self.join_table,
                 on=[self.table[:-1] + "_id", "id"])
+        if self._order_with:
+            repo = repo.order_by(**self._order_with)
         return repo.select(*self.attributes)
 
     def __iter__(self):

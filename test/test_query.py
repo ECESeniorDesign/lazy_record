@@ -6,6 +6,7 @@ sys.path.append(os.path.join(
     os.path.dirname(os.path.abspath(os.path.dirname(__file__))),
     "lazy_record"))
 from query import Query, Repo
+import query
 
 class TunaCasserole(object):
     __attributes__ = {"my_attr": int}
@@ -61,7 +62,18 @@ class TestQuery(unittest.TestCase):
         repo.where.return_value.select.assert_called_with(
             "id", "created_at", "my_attr")
 
-    def test_gets_one_record(self, Repo):
+    def test_allows_ordering(self, Repo):
+        list(Query(TunaCasserole).order_by(id="desc").all())
+        repo = Repo.return_value
+        repo.order_by.assert_called_with(id="desc")
+        order = repo.order_by.return_value
+        order.select.assert_called_with("id", "created_at", "my_attr")
+
+    def test_raises_on_multiple_orders(self, Repo):
+        with self.assertRaises(query.QueryInvalid):
+            list(Query(TunaCasserole).order_by(id="desc").order_by(id="asc").all())
+
+    def test_gets_first_record(self, Repo):
         self.assertEqual("mytestvalue",
             Query(TunaCasserole).where(my_attr=5).where(id=7).first())
         repo = Repo.return_value
@@ -70,6 +82,31 @@ class TestQuery(unittest.TestCase):
         where.select.assert_called_with(
             "id", "created_at", "my_attr")
         where.select.return_value.fetchone.assert_called_once_with()
+
+    def test_gets_last_record(self, Repo):
+        self.assertEqual("mytestvalue",
+            Query(TunaCasserole).where(my_attr=5).where(id=7).last())
+        repo = Repo.return_value
+        repo.where.assert_called_with(my_attr=5, id=7)
+        where = repo.where.return_value
+        where.order_by.assert_called_with(id="desc")
+        order = where.order_by.return_value
+        order.select.assert_called_with(
+            "id", "created_at", "my_attr")
+        order.select.return_value.fetchone.assert_called_once_with()
+
+    def test_gets_last_record_with_existing_sort(self, Repo):
+        self.assertEqual("mytestvalue",
+            Query(TunaCasserole).where(my_attr=5).order_by(id="desc").last())
+        repo = Repo.return_value
+        repo.where.assert_called_with(my_attr=5)
+        where = repo.where.return_value
+        where.order_by.assert_called_with(id="asc")
+        order = where.order_by.return_value
+        order.select.assert_called_with(
+            "id", "created_at", "my_attr")
+        order.select.return_value.fetchone.assert_called_once_with()
+
 
     def test_joins_tables(self, Repo):
         Repo.table_name.return_value = "tuna_casseroles"
