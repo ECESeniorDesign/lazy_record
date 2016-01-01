@@ -7,6 +7,7 @@ from validations import Validations
 
 class Base(query_methods.QueryMethods, Validations):
     __attributes__ = {}
+    __foreign_keys__ = {}
     def __init__(self, **kwargs):
         if set(["id", "created_at"]) & set(kwargs):
             raise AttributeError("Cannot set 'id' or 'created_at'")
@@ -18,6 +19,7 @@ class Base(query_methods.QueryMethods, Validations):
         self._id = None
         self._created_at = None
         self.__table = Repo.table_name(self.__class__)
+        self._related_records = []
 
     def __getattr__(self, attr):
         if attr == "id":
@@ -54,8 +56,9 @@ class Base(query_methods.QueryMethods, Validations):
     def delete(self):
         if self.id:
             Repo(self.__table).where(id=self.id).delete()
+            Repo.db.commit()
 
-    def save(self):
+    def _do_save(self):
         self.validate()
         if self.id:
             attrs = list(self.__class__.__attributes__) + ["created_at"]
@@ -65,7 +68,23 @@ class Base(query_methods.QueryMethods, Validations):
             attrs = list(self.__class__.__attributes__) + ["created_at"]
             self._created_at = datetime.date.today()
             data = { attr: getattr(self, attr) for attr in attrs }
-            self._id = int(Repo(self.__table).insert(**data))
+            self.__id = int(Repo(self.__table).insert(**data))
+
+    def _finish_save(self):
+        if not self.id:
+            self._id = self.__id
+        self._related_records = []
+
+    def save(self):
+        self._do_save()
+        our_name = Repo.table_name(self.__class__)[:-1]
+        for record in self._related_records:
+            if not self._id:
+                related_key = record.__class__.__foreign_keys__[our_name]
+                setattr(record, related_key, self.__id)
+            record._do_save()
+        Repo.db.commit()
+        self._finish_save()
 
     def __repr__(self):
         return "{}({})".format(

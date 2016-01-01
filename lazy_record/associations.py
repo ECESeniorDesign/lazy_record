@@ -15,6 +15,7 @@ class belongs_to(object):
             name=self.parent_name)
     def __call__(self, klass):
         models[klass.__name__] = klass
+        klass.__foreign_keys__[self.parent_name] = self.foreign_key
         def parent_record_method(wrapped_obj):
             parent = model_from_name(self.parent_name)
             q = query.Query(parent)
@@ -24,6 +25,9 @@ class belongs_to(object):
             pass
         setattr(Association, self.parent_name, parent_record_method)
         klass.__bases__ += (Association, )
+        new_attributes = dict(klass.__attributes__)
+        new_attributes[self.foreign_key] = int
+        klass.__attributes__ = new_attributes
         return klass
 
 # Currently exists only so that all models get registered
@@ -38,11 +42,12 @@ class has_many(object):
         self.foreign_key = self.foreign_key or "{name}_id".format(
             name=repo.Repo.table_name(klass)[:-1])
         models[klass.__name__] = klass
+        klass.__foreign_keys__[self.child_name] = self.foreign_key
         if self.through:
             # Do the query with a join
             def child_records_method(wrapped_obj):
                 child = model_from_name(self.child_name[:-1])
-                q = query.Query(child).joins(self.through)
+                q = query.Query(child, record=wrapped_obj).joins(self.through)
                 where_statement = {self.through:
                     {self.foreign_key: wrapped_obj.id}}
                 return q.where(**where_statement)

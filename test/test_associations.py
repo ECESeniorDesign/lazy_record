@@ -7,7 +7,9 @@ sys.path.append(os.path.join(
     os.path.dirname(os.path.abspath(os.path.dirname(__file__))),
     "lazy_record"))
 from lazy_record.associations import *
-class Base(object): pass
+class Base(object):
+    __attributes__ = {}
+    __foreign_keys__ = {}
 
 @has_many("comments")
 @has_many("test_models", foreign_key="postId")
@@ -101,6 +103,10 @@ class TestBelongsTo(unittest.TestCase):
         q2.first.return_value = "this"
         self.assertEqual("this & that", self.comment.post())
 
+    def test_adds_foreign_key_to_attributes(self):
+        self.assertEqual(TestModel.__attributes__["postId"], int)
+        self.assertEqual(Comment.__attributes__["post_id"], int)
+
 class TestHasMany(unittest.TestCase):
     def setUp(self):
         self.post = Post()
@@ -159,7 +165,7 @@ class TestHasManyThrough(unittest.TestCase):
     @mock.patch("lazy_record.associations.query")
     def test_makes_query_for_related_objects(self, query):
         self.post.tags()
-        query.Query.assert_called_with(Tag)
+        query.Query.assert_called_with(Tag, record=self.post)
         q = query.Query.return_value
         q.joins.assert_called_with("taggings")
         q2 = q.joins.return_value

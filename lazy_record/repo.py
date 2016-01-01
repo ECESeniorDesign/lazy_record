@@ -11,7 +11,7 @@ class Repo(object):
         self.table_name = table_name
         self.where_clause = ""
         self.where_values = []
-        self.inner_join_tables = []
+        self.inner_join_table = None
 
     def where(self, **restrictions):
         ordered_items = self._build_where(restrictions)
@@ -35,20 +35,18 @@ class Repo(object):
         return list(builder(where_query, self.table_name))
 
     def inner_join(self, table, on):
-        self.inner_join_tables.append(table)
+        self.inner_join_table = table
         self.foreign_on = on[0]
         self.local_on = on[1]
         return self
 
     @property
     def join_clause(self):
-        # FIXME ONLY SUPPORTS 1 DEEP JOINING
-        if self.inner_join_tables:
+        if self.inner_join_table:
             return ("inner join {foreign_table} on "
                    "{foreign_table}.{foreign_on} == "
                    "{local_table}.{local_on} ").format(
-                       foreign_table = self.inner_join_tables[0],
-                       # FIXME update to support multiple
+                       foreign_table = self.inner_join_table,
                        foreign_on = self.foreign_on,
                        local_table = self.table_name,
                        local_on = self.local_on,
@@ -80,7 +78,6 @@ class Repo(object):
             values = ", ".join(["?"] * len(data)),
         )
         handle = Repo.db.execute(cmd, [entry[1] for entry in data])
-        Repo.db.commit()
         # Return the id of the added row
         return handle.lastrowid
 
@@ -93,7 +90,6 @@ class Repo(object):
             table=self.table_name).rstrip()
         Repo.db.execute(cmd,
             [entry[1] for entry in data] + self.where_values)
-        Repo.db.commit()
 
     def delete(self):
         cmd = "delete from {table} {where_clause}".format(
@@ -101,7 +97,6 @@ class Repo(object):
             where_clause=self.where_clause
         ).rstrip()
         Repo.db.execute(cmd, self.where_values)
-        Repo.db.commit()
 
     @staticmethod
     def table_name(model):

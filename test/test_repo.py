@@ -72,7 +72,6 @@ class TestRepo(unittest.TestCase):
         Repo("tuna_casseroles").insert(my_attr=7)
         db.execute.assert_called_once_with(
             "insert into tuna_casseroles (my_attr) values (?)", [7])
-        db.commit.assert_called_once_with()
 
     def test_returns_id_of_inserted_record(self, db):
         db.execute.return_value.lastrowid = 5
@@ -83,33 +82,27 @@ class TestRepo(unittest.TestCase):
         with self.assertRaises(repo.Invalid):
             repo.Repo("tuna_casseroles").where(x=5).insert(my_attr=7)
         self.assertEqual(db.execute.call_count, 0, "expected not to execute db command, but did.")
-        self.assertEqual(db.commit.call_count, 0, "expected not to commit to db, but did.")
 
     def test_updates_records(self, db):
         Repo("tuna_casseroles").update(my_attr=7)
         db.execute.assert_called_once_with(
             "update tuna_casseroles set my_attr = ?", [7])
-        db.commit.assert_called_once_with()        
 
     def test_updates_with_where(self, db):
         Repo("tuna_casseroles").where(id=15).update(my_attr=7)
         db.execute.assert_called_once_with(
             "update tuna_casseroles set my_attr = ? "
             "where tuna_casseroles.id == ?", [7, 15])
-        db.commit.assert_called_once_with()        
 
     def test_deletes_records(self, db):
         Repo("tuna_casseroles").delete()
         db.execute.assert_called_once_with(
             "delete from tuna_casseroles", [])
-        db.commit.assert_called_once_with()        
 
     def test_deletes_records_with_where(self, db):
         Repo("tuna_casseroles").where(id=11).delete()
         db.execute.assert_called_once_with(
             "delete from tuna_casseroles where tuna_casseroles.id == ?", [11])
-        db.commit.assert_called_once_with()        
-        
 
 if __name__ == '__main__':
     unittest.main()
