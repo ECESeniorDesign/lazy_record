@@ -91,9 +91,9 @@ This allows the querying and creation of related records.
 ```python
 >>> post = Post()
 >>> post.save()
->>> comment = post.comments().build()
+>>> comment = post.comments.build()
 >>> comment.save()
->>> post.comments()
+>>> post.comments
 <lazy_record.Query [Comment(id=1, created_at=datetime.date(2016, 01, 01), post_id=1)]>
 ```
 
