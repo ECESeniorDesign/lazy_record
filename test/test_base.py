@@ -173,17 +173,18 @@ class TestBaseDestroy(unittest.TestCase):
 
     @mock.patch.object(MyModel, "__dependents__", new=["my_childs"])
     def test_deletes_dependents(self, Repo):
-        with mock.patch.object(self.my_model, "my_childs") as my_childs:
-            child = mock.Mock()
-            my_childs.return_value.__iter__.return_value = [child]
-            self.my_model.destroy()
-            my_childs.assert_called_with()
-            child.destroy.assert_called_with()
-            Repo.assert_called_with("my_models")
-            repo = Repo.return_value
-            repo.where.assert_called_with(id=5)
-            where = repo.where.return_value
-            where.delete.assert_called_with()
+        my_childs = mock.PropertyMock()
+        type(self.my_model).my_childs = my_childs
+        child = mock.Mock()
+        my_childs.return_value.__iter__.return_value = [child]
+        self.my_model.destroy()
+        my_childs.assert_called_with()
+        child.destroy.assert_called_with()
+        Repo.assert_called_with("my_models")
+        repo = Repo.return_value
+        repo.where.assert_called_with(id=5)
+        where = repo.where.return_value
+        where.delete.assert_called_with()
 
 if __name__ == '__main__':
     unittest.main()

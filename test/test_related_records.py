@@ -52,18 +52,18 @@ class TestBuildingRecordsThroughJoin(unittest.TestCase):
         self.person.save()
 
     def test_creates_records_and_intermediates(self):
-        book = self.person.books().build()
+        book = self.person.books.build()
         book.save()
-        assert (book.id in [b.id for b in self.person.books()])
-        assert (self.person.id in [p.id for p in book.persons()])
+        assert (book.id in [b.id for b in self.person.books])
+        assert (self.person.id in [p.id for p in book.persons])
 
     def test_adds_intermediaries(self):
         book = Book()
         book.save()
-        self.person.books().append(book)
+        self.person.books.append(book)
         self.person.save()
-        assert (book.id in [b.id for b in self.person.books()])
-        assert (self.person.id in [p.id for p in book.persons()])
+        assert (book.id in [b.id for b in self.person.books])
+        assert (self.person.id in [p.id for p in book.persons])
 
 class TestDestroyingRecordsThroughJoin(unittest.TestCase):
     def setUp(self):
@@ -79,9 +79,9 @@ class TestDestroyingRecordsThroughJoin(unittest.TestCase):
     def test_deletes_only_join_record(self):
         self.person.destroy()
         # Test that the relationship is gone
-        assert len(list(self.person.books())) == 0, \
+        assert len(list(self.person.books)) == 0, \
         "Expected self.person.books() to be empty, "
-        "but it had count {}".format(len(list(self.person.books())))
+        "but it had count {}".format(len(list(self.person.books)))
         # test that the book still exists
         assert Book.find(self.book.id).id == self.book.id
 

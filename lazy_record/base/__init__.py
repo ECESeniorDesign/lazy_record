@@ -66,7 +66,7 @@ class Base(query_methods.QueryMethods, Validations):
         if self.id:
             Repo(self.__table).where(id=self.id).delete()
             for dependent in set(self.__class__.__dependents__):
-                for record in getattr(self, dependent)():
+                for record in getattr(self, dependent):
                     record.destroy()
             Repo.db.commit()
 

@@ -23,7 +23,7 @@ class belongs_to(object):
         parent_record_method.__name__ = self.parent_name
         class Association(object):
             pass
-        setattr(Association, self.parent_name, parent_record_method)
+        setattr(Association, self.parent_name, property(parent_record_method))
         klass.__bases__ += (Association, )
         new_attributes = dict(klass.__attributes__)
         new_attributes[self.foreign_key] = int
@@ -62,7 +62,8 @@ class has_many(object):
                 through = model_from_name(self.through[:-1])
                 return query.Query(through, record=wrapped_obj).where(
                     **{self.foreign_key: wrapped_obj.id})
-            setattr(Association, self.through, through_records_method)
+            setattr(Association, self.through,
+                property(through_records_method))
         else:
             # Don't do a join
             def child_records_method(wrapped_obj):
@@ -71,6 +72,6 @@ class has_many(object):
                 where_statement = {self.foreign_key: wrapped_obj.id}
                 return q.where(**where_statement)
         child_records_method.__name__ = self.child_name
-        setattr(Association, self.child_name, child_records_method)
+        setattr(Association, self.child_name, property(child_records_method))
         klass.__bases__ += (Association, )
         return klass
