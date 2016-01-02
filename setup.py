@@ -1,7 +1,7 @@
 from distutils.core import setup
 setup(
   name = 'lazy_record',
-  packages = ['lazy_record'], # this must be the same as the name above
+  packages = ['lazy_record', 'lazy_record/base'], # this must be the same as the name above
   version = '0.1.dev',
   description = 'Generic Model Layer for Python Web Applications using Sqlite3',
   author = 'Chase Conklin',
