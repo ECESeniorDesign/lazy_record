@@ -8,6 +8,6 @@ setup(
   author_email = 'cconkli4@u.rochester.edu',
   url = 'https://github.com/ECESeniorDesign/lazy_record', # use the URL to the github repo
   download_url = 'https://github.com/ECESeniorDesign/lazy_record/tarball/0.1.dev', # I'll explain this in a second
-  keywords = ['testing', 'logging', 'example'], # arbitrary keywords
+  keywords = ['flask'],
   classifiers = [],
 )
