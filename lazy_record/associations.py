@@ -16,15 +16,17 @@ class belongs_to(object):
     def __call__(self, klass):
         models[klass.__name__] = klass
         klass.__foreign_keys__[self.parent_name] = self.foreign_key
-        def parent_record_method(wrapped_obj):
+        def parent_record_getter(wrapped_obj):
             parent = model_from_name(self.parent_name)
             q = query.Query(parent)
             return q.where(id=getattr(wrapped_obj, self.foreign_key)).first()
-        parent_record_method.__name__ = self.parent_name
-        class Association(object):
-            pass
-        setattr(Association, self.parent_name, property(parent_record_method))
-        klass.__bases__ += (Association, )
+        def parent_record_setter(wrapped_obj, new_parent):
+            if new_parent is not None:
+                setattr(wrapped_obj, self.foreign_key, new_parent.id)
+            else:
+                setattr(wrapped_obj, self.foreign_key, None)
+        setattr(klass, self.parent_name,
+            property(parent_record_getter, parent_record_setter))
         new_attributes = dict(klass.__attributes__)
         new_attributes[self.foreign_key] = int
         klass.__attributes__ = new_attributes
@@ -47,8 +49,6 @@ class has_many(object):
             klass.__dependents__ = klass.__dependents__ + [self.through]
         else:
             klass.__dependents__ = klass.__dependents__ + [self.child_name]
-        class Association(object):
-            pass
         if self.through:
             # Do the query with a join
             def child_records_method(wrapped_obj):
@@ -62,7 +62,7 @@ class has_many(object):
                 through = model_from_name(self.through[:-1])
                 return query.Query(through, record=wrapped_obj).where(
                     **{self.foreign_key: wrapped_obj.id})
-            setattr(Association, self.through,
+            setattr(klass, self.through,
                 property(through_records_method))
         else:
             # Don't do a join
@@ -71,7 +71,5 @@ class has_many(object):
                 q = query.Query(child)
                 where_statement = {self.foreign_key: wrapped_obj.id}
                 return q.where(**where_statement)
-        child_records_method.__name__ = self.child_name
-        setattr(Association, self.child_name, property(child_records_method))
-        klass.__bases__ += (Association, )
+        setattr(klass, self.child_name, property(child_records_method))
         return klass

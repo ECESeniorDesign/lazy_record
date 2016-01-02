@@ -16,9 +16,6 @@ class Base(object):
 @has_many("test_models", foreign_key="postId")
 @has_many("tags", through="taggings")
 class Post(Base):
-    @property
-    def comments(self):
-        return super(Post, self).comments + " & that"
     def boo(self):
         return "blah"
 
@@ -30,9 +27,6 @@ class Comment(Base):
     @classmethod
     def bar(Comment):
         return "baz"
-    @property
-    def post(self):
-        return super(Comment, self).post + " & that"
 
 @belongs_to("comment")
 @belongs_to("post", foreign_key="postId")
@@ -97,18 +91,22 @@ class TestBelongsTo(unittest.TestCase):
         q.where.assert_called_with(id=17)
         q2.first.assert_called_with()        
 
-    def test_allows_overloading_of_parent_method(self, query):
-        q = query.Query.return_value
-        q2 = q.where.return_value
-        q2.first.return_value = "this"
-        self.assertEqual("this & that", self.comment.post)
-
     def test_adds_foreign_key_to_attributes(self, query):
         self.assertEqual(TestModel.__attributes__["postId"], int)
         self.assertEqual(Comment.__attributes__["post_id"], int)
 
     def test_does_not_add_parent_as_dependents(self, query):
         self.assertNotIn("post", Comment.__dependents__)
+
+    def test_allows_changing_of_parent_directly(self, query):
+        new_post = Post()
+        new_post.id = 87
+        self.comment.post = new_post
+        self.assertEqual(self.comment.post_id, 87)
+
+    def test_allows_changing_of_parent_to_None(self, query):
+        self.comment.post = None
+        self.assertEqual(self.comment.post_id, None)
 
 @mock.patch("lazy_record.associations.query")
 class TestHasMany(unittest.TestCase):
@@ -148,12 +146,6 @@ class TestHasMany(unittest.TestCase):
         self.post.test_models
         query.Query.assert_called_with(TestModel)
         q.where.assert_called_with(postId=11)
-
-    def test_allows_overloading_of_child_method(self, query):
-        query.Query.table_name.return_value = "posts"
-        q = query.Query.return_value
-        q.where.return_value = "this"
-        self.assertEqual("this & that", self.post.comments)
 
     def test_adds_children_as_dependents_when_not_joined(self, query):
         self.assertIn("comments", Post.__dependents__)
