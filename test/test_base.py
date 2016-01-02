@@ -157,6 +157,11 @@ class TestBase(unittest.TestCase):
         query = Query.return_value
         query.last.assert_called_with()
 
+    def test_mass_assigns_records(self, Query, Repo, datetime):
+        m = MyModel()
+        m.update(name="foo")
+        self.assertEqual(m.name, "foo")
+
 @mock.patch("base.Repo")
 class TestBaseDestroy(unittest.TestCase):
     def setUp(self):

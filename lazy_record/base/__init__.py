@@ -17,9 +17,7 @@ class Base(query_methods.QueryMethods, Validations):
             raise AttributeError("Cannot set 'id' or 'created_at'")
         for attr in self.__class__.__attributes__:
             setattr(self, "_" + attr, None)
-        for attr, val in kwargs.items():
-            if attr in (list(self.__class__.__attributes__)):
-                setattr(self, attr, val)
+        self.update(**kwargs)
         self._id = None
         self._created_at = None
         self.__table = Repo.table_name(self.__class__)
@@ -57,6 +55,11 @@ class Base(query_methods.QueryMethods, Validations):
         for attr, val in kwargs.items():
             setattr(obj, "_" + attr, val)
         return obj
+
+    def update(self, **kwargs):
+        for attr, val in kwargs.items():
+            if attr in (list(self.__class__.__attributes__)):
+                setattr(self, attr, val)
 
     def delete(self):
         if self.id:
