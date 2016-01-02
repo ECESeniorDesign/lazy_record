@@ -80,10 +80,19 @@ class TestDestroyingRecordsThroughJoin(unittest.TestCase):
         self.person.destroy()
         # Test that the relationship is gone
         assert len(list(self.person.books)) == 0, \
-        "Expected self.person.books() to be empty, "
-        "but it had count {}".format(len(list(self.person.books)))
+        ("Expected self.person.books to be empty, "
+        "but it had count {}".format(len(list(self.person.books))))
         # test that the book still exists
         assert Book.find(self.book.id).id == self.book.id
+
+    def test_delete_on_query_unlinks_records_and_destroys_join(self):
+        self.person.books.delete(self.book)
+        self.person.save()
+        assert len(list(self.person.books)) == 0, \
+        ("Expected self.person.books to be empty, "
+        "but it had count {}".format(len(list(self.person.books))))
+        assert Book.find(self.book.id).id == self.book.id
+        assert Person.find(self.person.id).id == self.person.id
 
 if __name__ == '__main__':
     unittest.main()

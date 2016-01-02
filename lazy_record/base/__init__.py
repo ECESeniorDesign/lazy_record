@@ -24,6 +24,7 @@ class Base(query_methods.QueryMethods, Validations):
         self._created_at = None
         self.__table = Repo.table_name(self.__class__)
         self._related_records = []
+        self._delete_related_records = []
 
     def __getattr__(self, attr):
         if attr == "id":
@@ -62,12 +63,15 @@ class Base(query_methods.QueryMethods, Validations):
             Repo(self.__table).where(id=self.id).delete()
             Repo.db.commit()
 
+    def _do_destroy(self):
+        Repo(self.__table).where(id=self.id).delete()
+        for dependent in set(self.__class__.__dependents__):
+            for record in getattr(self, dependent):
+                record._do_destroy()
+
     def destroy(self):
         if self.id:
-            Repo(self.__table).where(id=self.id).delete()
-            for dependent in set(self.__class__.__dependents__):
-                for record in getattr(self, dependent):
-                    record.destroy()
+            self._do_destroy()
             Repo.db.commit()
 
     def _do_save(self):
@@ -95,6 +99,8 @@ class Base(query_methods.QueryMethods, Validations):
                 related_key = record.__class__.__foreign_keys__[our_name]
                 setattr(record, related_key, self.__id)
             record._do_save()
+        for record in self._delete_related_records:
+            record._do_destroy()
         Repo.db.commit()
         self._finish_save()
 

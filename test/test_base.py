@@ -179,7 +179,7 @@ class TestBaseDestroy(unittest.TestCase):
         my_childs.return_value.__iter__.return_value = [child]
         self.my_model.destroy()
         my_childs.assert_called_with()
-        child.destroy.assert_called_with()
+        child._do_destroy.assert_called_with()
         Repo.assert_called_with("my_models")
         repo = Repo.return_value
         repo.where.assert_called_with(id=5)

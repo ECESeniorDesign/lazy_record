@@ -104,25 +104,49 @@ class Query(object):
     def append(self, record):
         if self.record:
             if self.join_table:
-                # Both records are already persisted (have ids), so we can
-                # set up the relating record fully now. One of the ids comes
-                # from the constraint on the query, the other comes from
-                # the foreign key logic below:
-                # What we do is we get the singular table name of the record.
-                # With that, we can look into the related class description for
-                # the correct foreign key, which is set to the passed record's
-                # id. As always, the related record is created when the primary
+                # As always, the related record is created when the primary
                 # record is saved
                 related_class = associations.model_from_name(
                     self.join_table[:-1])
-                related_args = self.where_query.get(self.join_table, {})
-                record_class_name = Repo.table_name(record.__class__)[:-1]
-                related_key = related_class.__foreign_keys__[record_class_name]
-                related_args[related_key] = record.id
-                related_record = related_class(**related_args)
+                related_record = related_class(
+                    **self._related_args(record, related_class))
                 self.record._related_records.append(related_record)
             else:
                 self.record._related_records.append(record)
+
+    def delete(self, record):
+        # note: does (and should) not delete or destroy the record
+        if self.record:
+            if self.join_table:
+                related_class = associations.model_from_name(
+                    self.join_table[:-1])
+                # Same logic as append
+                related_record = related_class.find_by(
+                    **self._related_args(record, related_class))
+                # mark the joining record to be destroyed the primary is saved
+                self.record._delete_related_records.append(related_record)
+            else:
+                record_class_name = Repo.table_name(record.__class__)[:-1]
+                foreign_key = record.__class__.__foreign_keys__[
+                    record_class_name]
+                setattr(record, foreign_key, None)
+                # Ensure that the change is persisted on save
+                self.record._related_records.append(record)
+
+    def _related_args(self, record, related_class):
+        # Both records are already persisted (have ids), so we can
+        # set up the relating record fully now. One of the ids comes
+        # from the constraint on the query, the other comes from
+        # the foreign key logic below:
+        # What we do is we get the singular table name of the record.
+        # With that, we can look into the related class description for
+        # the correct foreign key, which is set to the passed record's
+        # id.
+        related_args = self.where_query.get(self.join_table, {})
+        record_class_name = Repo.table_name(record.__class__)[:-1]
+        related_key = related_class.__foreign_keys__[record_class_name]
+        related_args[related_key] = record.id
+        return related_args
 
     class __metaclass__(type):
         def __repr__(self):

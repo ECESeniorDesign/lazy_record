@@ -10,8 +10,9 @@ import query
 
 class TunaCasserole(object):
     __attributes__ = {"my_attr": int}
-
+    __foreign_keys__ = {"tuna_casserole": "tuna_casserole_id"}
     def __init__(self, **kwargs):
+        self._related_records = []
         for k, v in kwargs.items():
             setattr(self, k, v)
 
@@ -125,6 +126,13 @@ class TestQuery(unittest.TestCase):
     def test_builds_simple_related_records_with_args(self, Repo):
         record = Query(TunaCasserole).where(my_attr = 11).build(my_attr=12)
         self.assertEqual(record.my_attr, 12)
+
+    def test_unrelates_records(self, Repo):
+        Repo.table_name.return_value = "tuna_casseroles"
+        t = TunaCasserole()
+        t2 = TunaCasserole(tuna_casserole_id=15)
+        Query(TunaCasserole, record=t).delete(t2)
+        self.assertEqual(t2.tuna_casserole_id, None)
 
 if __name__ == '__main__':
     unittest.main()
