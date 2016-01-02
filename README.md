@@ -1,6 +1,8 @@
 # lazy_record
 Generic Model Layer for Python Web Applications using Sqlite3
 
+[![Build Status](https://travis-ci.org/ECESeniorDesign/lazy_record.svg?branch=master)](https://travis-ci.org/ECESeniorDesign/lazy_record)
+
 # Usage
 
 To make the behavior of lazy_record avaliable, add the following into any files in which you define models:
