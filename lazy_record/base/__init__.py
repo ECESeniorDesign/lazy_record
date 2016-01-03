@@ -4,7 +4,7 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 from query import Query
 from repo import Repo
 import datetime
-from errors import *
+from lazy_record.errors import *
 import query_methods
 from validations import Validations
 

@@ -1,5 +1,5 @@
 from query import Query
-from errors import *
+from lazy_record.errors import *
 class QueryMethods(object):
     @classmethod
     def find(cls, id):

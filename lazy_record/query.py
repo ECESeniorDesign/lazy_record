@@ -1,6 +1,6 @@
 from repo import Repo
 import associations
-from errors import *
+from lazy_record.errors import *
 
 class Query(object):
 

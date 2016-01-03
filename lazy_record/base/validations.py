@@ -1,4 +1,4 @@
-from errors import *
+from lazy_record.errors import *
 
 class Validations(object):
     __validates__ = {}
