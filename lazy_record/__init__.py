@@ -3,7 +3,7 @@ __author__ = "Chase Conklin"
 from query import Query
 from repo import Repo
 from base import Base
-from exceptions import *
+from errors import *
 from types import *
 
 def connect_db(database_name=":memory:"):
