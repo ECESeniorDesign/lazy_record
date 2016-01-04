@@ -6,11 +6,7 @@ class QueryMethods(object):
         """
         Find record by +id+, raising RecordNotFound if no record exists.
         """
-        result = Query(cls).where(id=id).first()
-        if result:
-            return result
-        else:
-            raise RecordNotFound({'id': id})
+        return cls.find_by(id=id)
 
     @classmethod
     def find_by(cls, **kwargs):
