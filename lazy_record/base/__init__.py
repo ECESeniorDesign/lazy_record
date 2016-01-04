@@ -12,7 +12,12 @@ class Base(query_methods.QueryMethods, Validations):
     __attributes__ = {}
     __foreign_keys__ = {}
     __dependents__ = []
+
     def __init__(self, **kwargs):
+        """
+        Instantiate a new object, mass-assigning the values in +kwargs+.
+        Cannot mass-assign id or created_at.
+        """
         if set(["id", "created_at"]) & set(kwargs):
             raise AttributeError("Cannot set 'id' or 'created_at'")
         for attr in self.__class__.__attributes__:
@@ -25,6 +30,19 @@ class Base(query_methods.QueryMethods, Validations):
         self._delete_related_records = []
 
     def __getattr__(self, attr):
+        """
+        Get and cast +attr+ according to the __attributes__ class variable.
+
+        ex)
+        >>> class MyRecord(lazy_record.Base)
+        ...     __attributes__ = {
+        ...         "my_val": int
+        ...     }
+        ...
+        >>> record = MyRecord(my_val='11')
+        >>> record.my_val
+        11
+        """
         if attr == "id":
             if self._id:
                 return self._id
@@ -42,6 +60,21 @@ class Base(query_methods.QueryMethods, Validations):
             return self.__getattribute__(attr)
 
     def __setattr__(self, name, value):
+        """
+        Cast +value+ according to the __attributes__ class variable, then set
+        the attribute +name+ to the casted value.
+
+        ex)
+        >>> class MyRecord(lazy_record.Base)
+        ...     __attributes__ = {
+        ...         "my_val": int
+        ...     }
+        ...
+        >>> record = MyRecord()
+        >>> record.my_val = '11'
+        >>> record._my_val # Don't actually do this in production code.
+        11
+        """
         if name in ("id", "created_at"):
             raise AttributeError("Cannot set '{}'".format(name))
         elif name in self.__class__.__attributes__:
@@ -51,17 +84,31 @@ class Base(query_methods.QueryMethods, Validations):
 
     @classmethod
     def from_dict(cls, **kwargs):
+        """
+        Construct an object an mass-assign its attributes using +kwargs+,
+        ignoring all protections of id and created_at. Intended for
+        constructing objects already present in the database (i.e for use by
+        methods such as find or within Query).
+        """
         obj = cls()
         for attr, val in kwargs.items():
             setattr(obj, "_" + attr, val)
         return obj
 
     def update(self, **kwargs):
+        """
+        Mass-assign the attributes in +kwargs+ to the object, preventing
+        attributes not in __attributes__ from being set.
+        """
         for attr, val in kwargs.items():
             if attr in (list(self.__class__.__attributes__)):
                 setattr(self, attr, val)
 
     def delete(self):
+        """
+        Delete this record without deleting any dependent or child records.
+        This can orphan records, so use with care.
+        """
         if self.id:
             Repo(self.__table).where(id=self.id).delete()
             Repo.db.commit()
@@ -73,6 +120,10 @@ class Base(query_methods.QueryMethods, Validations):
                 record._do_destroy()
 
     def destroy(self):
+        """
+        Delete this record, while also destroying (i.e. calling destroy) on
+        all dependents and children.
+        """
         if self.id:
             self._do_destroy()
             Repo.db.commit()
@@ -95,6 +146,11 @@ class Base(query_methods.QueryMethods, Validations):
         self._related_records = []
 
     def save(self):
+        """
+        Save a record to the database, creating it if needed, updating it
+        otherwise. Also saves related records (children and dependents) as
+        needed.
+        """
         self._do_save()
         our_name = Repo.table_name(self.__class__)[:-1]
         for record in self._related_records:

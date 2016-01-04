@@ -5,9 +5,16 @@ class Invalid(Exception):
     pass
 
 class Repo(object):
+    """
+    Wrapper object around the database.
+    """
     db = None
 
     def __init__(self, table_name):
+        """
+        Instantiates a Repo object for the passed +table_name+ for adding,
+        updating, or destroying records in that table.
+        """
         self.table_name = table_name
         self.where_clause = ""
         self.where_values = []
@@ -15,6 +22,15 @@ class Repo(object):
         self.order_clause = ""
 
     def where(self, **restrictions):
+        """
+        Analog to SQL "WHERE". Currently only supports ==. Does not perform
+        a query until `select` is called. Returns a repo object.
+
+        ex)
+
+        >>> Repo("foos").where(id=11).select("*")
+        SELECT foos.* FROM foos WHERE id == 11
+        """
         ordered_items = self._build_where(restrictions)
         self.where_clause = "where {query} ".format(
             query = " and ".join("{table}.{attr} == ?".format(
@@ -26,6 +42,8 @@ class Repo(object):
         return self
 
     def _build_where(self, where_query):
+        # Recursively loops through the where query to produce a list of
+        # 3-tuples that contain the (table name, column, value)
         def builder(where_dict, default_table):
             for key, value in where_dict.items():
                 if type(value) is dict:
@@ -36,12 +54,26 @@ class Repo(object):
         return list(builder(where_query, self.table_name))
 
     def inner_join(self, table, on):
+        """
+        Analog to SQL "INNER JOIN" on +table+. +on+ is a 2-tuple of type
+        (foreign col, local col).
+        """
         self.inner_join_table = table
         self.foreign_on = on[0]
         self.local_on = on[1]
         return self
 
     def order_by(self, **kwargs):
+        """
+        Analog to SQL "ORDER BY". +kwargs+ should only contain one item.
+
+        examples)
+
+        NO:  repo.order_by()
+        NO:  repo.order_by(id="desc", name="asc")
+
+        YES: repo.order_by(id="asc)
+        """
         col, order = kwargs.popitem()
         self.order_clause = "order by {col} {order} ".format(
             col=col, order=order)
@@ -49,6 +81,8 @@ class Repo(object):
 
     @property
     def join_clause(self):
+        # Internal use only, but the API should be stable, except for when we
+        # add support for multi-level joins
         if self.inner_join_table:
             return ("inner join {foreign_table} on "
                    "{foreign_table}.{foreign_on} == "
@@ -62,6 +96,15 @@ class Repo(object):
             return ""
 
     def select(self, *attributes):
+        """
+        Select the passed +attributes+ from the table, subject to the
+        restrictions provided by the other methods in this class.
+
+        ex)
+
+        >>> Repo("foos").select("name", "id")
+        SELECT foos.name, foos.id FROM foos
+        """
         namespaced_attributes = [
             "{table}.{attr}".format(table=self.table_name, attr=attr)
             for attr in attributes
@@ -76,6 +119,10 @@ class Repo(object):
         return Repo.db.execute(cmd, self.where_values)
 
     def insert(self, **data):
+        """
+        Insert the passed +data+ into the table. Raises Invalid if a where
+        clause is present (i.e. no INSERT INTO table WHERE)
+        """
         if self.where_clause:
             raise Invalid("Cannot insert with 'where' clause.")
         # Ensure that order is preserved
@@ -90,6 +137,15 @@ class Repo(object):
         return handle.lastrowid
 
     def update(self, **data):
+        """
+        Update records in the table with +data+. Often combined with `where`,
+        as it acts on all records in the table unless restricted.
+
+        ex)
+
+        >>> Repo("foos").update(name="bar")
+        UPDATE foos SET name = "bar"
+        """
         data = data.items()
         update_command_arg = ", ".join("{} = ?".format(entry[0]) for entry in data)
         cmd = "update {table} set {update_command_arg} {where_clause}".format(
@@ -100,6 +156,10 @@ class Repo(object):
             [entry[1] for entry in data] + self.where_values)
 
     def delete(self):
+        """
+        Remove entries from the table. Often combined with `where`, as it acts
+        on all records in the table unless restricted.
+        """
         cmd = "delete from {table} {where_clause}".format(
             table=self.table_name,
             where_clause=self.where_clause
@@ -108,12 +168,19 @@ class Repo(object):
 
     @staticmethod
     def table_name(model):
+        """
+        Get a model's table name. (e.g. MyModel => "my_models")
+        """
         underscore_regex = re.compile(
             '((?<=[a-z0-9])[A-Z]|(?!^)[A-Z](?=[a-z]))')
         return underscore_regex.sub(r'_\1', model.__name__).lower() + "s"
 
     @classmethod
     def connect_db(Repo, database=":memory:"):
+        """
+        Connect Repo to a database with path +database+ so all instances can
+        interact with the database.
+        """
         Repo.db = sqlite3.connect(database,
             detect_types=sqlite3.PARSE_DECLTYPES)
         return Repo.db

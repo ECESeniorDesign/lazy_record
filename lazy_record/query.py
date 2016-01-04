@@ -3,8 +3,19 @@ import associations
 from lazy_record.errors import *
 
 class Query(object):
+    """
+    Generic Query object used for searching a database for records, and
+    constructing records using the returned values from the database.
+    """
 
     def __init__(self, model, record=None):
+        """
+        Instantiates a new Query. +model+ is the lazy_record model (i.e. class)
+        that the query will be made about: the query's member objects will be
+        members of +model+'s class. When +record+ is passed, it is used for
+        managing related records (to ensure that associated records are upated
+        on +record+'s save and visa-versa).
+        """
         self.model = model
         self.record = record
         self.where_query = {}
@@ -15,9 +26,16 @@ class Query(object):
         self.table = Repo.table_name(self.model)
 
     def all(self):
+        """
+        Returns all records that match the query.
+        """
         return self
 
     def first(self):
+        """
+        Returns the first record in the query (sorting by id unless modified by
+        `order_by`), returning None if the query has no records.
+        """
         record = self._do_query().fetchone()
         if not record:
             return None
@@ -25,6 +43,11 @@ class Query(object):
         return self.model.from_dict(**args)
 
     def last(self):
+        """
+        Returns the last record in the query (sorting by id unless modified by
+        `order_by`, whereupon it reverses the order passed in `order_by`).
+        Returns None if the query has no records.
+        """
         if self._order_with:
             order = self._order_with.values()[0]
             order = "desc" if order == "asc" else "asc"
@@ -37,6 +60,12 @@ class Query(object):
             return self.order_by(id="desc").first()
 
     def order_by(self, **kwargs):
+        """
+        Orders the query by the key passed in +kwargs+. Only pass one key, as
+        it cannot sort by multiple columns at once. Raises QueryInvalid if this
+        method is called when there is already a custom order (i.e. this
+        method was already called on this query). Analog to "ORDER BY" in SQL.
+        """
         # Only get one thing from kwargs (we can only order by one thing...)
         if self._order_with:
             raise QueryInvalid("Cannot order by more than one column")
@@ -44,11 +73,20 @@ class Query(object):
         return self
 
     def where(self, **restrictions):
+        """
+        Restricts the records to the query subject to the passed
+        +restrictions+. Analog to "WHERE" in SQL. Can pass multiple
+        restrictions, and can invoke this method multiple times per query.
+        """
         for attr, value in restrictions.items():
             self.where_query[attr] = value
         return self
 
     def joins(self, table):
+        """
+        Analog to "INNER JOIN" in SQL on the passed +table+. Currently only
+        supports one deep joins.
+        """
         self.join_table = table
         return self
 
@@ -76,6 +114,12 @@ class Query(object):
         )
 
     def build(self, **kwargs):
+        """
+        Builds a new record subject to the restrictions in the query.
+        Will build intermediate (join table) records as needed, and links them
+        to the returned record so that they are saved when the returned record
+        is.
+        """
         build_args = dict(self.where_query)
         build_args.update(kwargs)
         record = self.model(**build_args)
@@ -102,6 +146,19 @@ class Query(object):
         return record
 
     def append(self, record):
+        """
+        Adds the passed +record+ to satisfy the query. Only intended to be
+        used in conjunction with associations (i.e. do not use if self.record
+        is None).
+
+        Intended use case (DO THIS):
+
+        post.comments.append(comment)
+
+        NOT THIS:
+
+        Query(Post).where(content="foo").append(post)
+        """
         if self.record:
             if self.join_table:
                 # As always, the related record is created when the primary
@@ -115,6 +172,14 @@ class Query(object):
                 self.record._related_records.append(record)
 
     def delete(self, record):
+        """
+        Removes a record from an query. Does not destroy the passed +record+,
+        but marks any joining records for destruction (in the case of a
+        many-to-many relationship) or sets the foreign key of +record+ to None
+        (in the case of a one-to-many relationship). Only intended to be
+        used in conjunction with associations (i.e. do not use if self.record
+        is None).
+        """
         # note: does (and should) not delete or destroy the record
         if self.record:
             if self.join_table:
