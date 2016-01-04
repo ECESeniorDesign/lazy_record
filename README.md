@@ -2,6 +2,7 @@
 Generic Model Layer for Python Web Applications using Sqlite3
 
 [![Build Status](https://travis-ci.org/ECESeniorDesign/lazy_record.svg?branch=master)](https://travis-ci.org/ECESeniorDesign/lazy_record)
+[![Code Climate](https://codeclimate.com/github/ECESeniorDesign/lazy_record/badges/gpa.svg)](https://codeclimate.com/github/ECESeniorDesign/lazy_record)
 
 # Usage
 
