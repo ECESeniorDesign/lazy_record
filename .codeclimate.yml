@@ -1,7 +1,8 @@
 engines:
   pep8:
     enabled: true
-  radon: true
+  radon:
+    enabled: true
 
 ratings:
    paths:
