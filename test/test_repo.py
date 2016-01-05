@@ -9,15 +9,18 @@ sys.path.insert(0, os.path.join(
 from repo import Repo
 import repo
 
+
 class TunaCasserole(object):
     pass
 
+
 @mock.patch("repo.Repo.db")
 class TestRepo(unittest.TestCase):
+
     def test_gets_table_name(self, _):
-        self.assertEqual("tuna_casseroles",
-            Repo.table_name(TunaCasserole))
-    
+        table_name = Repo.table_name(TunaCasserole)
+        self.assertEqual("tuna_casseroles", table_name)
+
     @mock.patch("repo.sqlite3")
     def test_connects_database(self, sqlite3, db):
         repo.Repo.connect_db("my_db")
@@ -37,6 +40,7 @@ class TestRepo(unittest.TestCase):
             "select tuna_casseroles.id, tuna_casseroles.created_at "
             "from tuna_casseroles "
             "where tuna_casseroles.my_attr == ?", [5])
+
     def test_queries_through_tables(self, db):
         Repo("tuna_casseroles").where(
             my_relations=dict(my_attr=5)).select("id", "created_at")
@@ -81,7 +85,8 @@ class TestRepo(unittest.TestCase):
     def test_does_not_insert_records_with_where(self, db,  _):
         with self.assertRaises(repo.Invalid):
             repo.Repo("tuna_casseroles").where(x=5).insert(my_attr=7)
-        self.assertEqual(db.execute.call_count, 0, "expected not to execute db command, but did.")
+        self.assertEqual(db.execute.call_count, 0,
+            "expected not to execute db command, but did.")
 
     def test_updates_records(self, db):
         Repo("tuna_casseroles").update(my_attr=7)
@@ -112,4 +117,3 @@ class TestRepo(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-

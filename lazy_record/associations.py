@@ -1,12 +1,16 @@
 import query
 import repo
+
+
 models = {}
+
 
 def model_from_name(parent_name):
     class_name = "".join(
         name.title() for name in parent_name.split("_")
     )
     return models[class_name]
+
 
 class belongs_to(object):
     """
@@ -40,11 +44,13 @@ class belongs_to(object):
         self.parent_name = parent_name
         self.foreign_key = foreign_key or "{name}_id".format(
             name=self.parent_name)
+
     def __call__(self, klass):
         # Add the model to the registry of known models with associations
         models[klass.__name__] = klass
         # Set the foreign key in the model in case it needs to be looked up
         klass.__foreign_keys__[self.parent_name] = self.foreign_key
+
         # Getter method for the parent record (e.g. comment.post)
         # Is added to the class as a property
         def parent_record_getter(wrapped_obj):
@@ -52,6 +58,7 @@ class belongs_to(object):
             # Not using parent.find() because it raises if it cannot find
             q = query.Query(parent)
             return q.where(id=getattr(wrapped_obj, self.foreign_key)).first()
+
         # Setter method for updating the foreign key in this object
         def parent_record_setter(wrapped_obj, new_parent):
             if new_parent is not None:
@@ -61,9 +68,10 @@ class belongs_to(object):
                 # Un-setting a parent, set the foreign key to None
                 # Can't use new_parent.id since new_parent is None
                 setattr(wrapped_obj, self.foreign_key, None)
+
         # Add setter and getter to class as properties
         setattr(klass, self.parent_name,
-            property(parent_record_getter, parent_record_setter))
+                property(parent_record_getter, parent_record_setter))
         # Add the foreign key to the attribute dict of the model
         # Doing so in such a way as to not mutate the dict, otherwise it can
         # override the value in lazy_record.Base (and thus all models)
@@ -71,6 +79,7 @@ class belongs_to(object):
         new_attributes[self.foreign_key] = int
         klass.__attributes__ = new_attributes
         return klass
+
 
 # Currently exists only so that all models get registered
 class has_many(object):
@@ -114,20 +123,23 @@ class has_many(object):
         else:
             klass.__dependents__ = klass.__dependents__ + [self.child_name]
         if self.through:
+
             # Do the query with a join
             def child_records_method(wrapped_obj):
                 child = model_from_name(self.child_name[:-1])
                 q = query.Query(child, record=wrapped_obj).joins(self.through)
-                where_statement = {self.through:
-                    {self.foreign_key: wrapped_obj.id}}
+                where_statement = {
+                    self.through: {self.foreign_key: wrapped_obj.id}}
                 return q.where(**where_statement)
+
             # define the method for the through
             def through_records_method(wrapped_obj):
                 through = model_from_name(self.through[:-1])
                 return query.Query(through, record=wrapped_obj).where(
                     **{self.foreign_key: wrapped_obj.id})
+
             setattr(klass, self.through,
-                property(through_records_method))
+                    property(through_records_method))
         else:
             # Don't do a join
             def child_records_method(wrapped_obj):
@@ -135,5 +147,6 @@ class has_many(object):
                 q = query.Query(child)
                 where_statement = {self.foreign_key: wrapped_obj.id}
                 return q.where(**where_statement)
+
         setattr(klass, self.child_name, property(child_records_method))
         return klass

@@ -7,39 +7,51 @@ sys.path.insert(0, os.path.join(
     os.path.dirname(os.path.abspath(os.path.dirname(__file__))),
     "lazy_record"))
 from lazy_record.associations import *
+
+
 class Base(object):
     __dependents__ = []
     __attributes__ = {}
     __foreign_keys__ = {}
 
+
 @has_many("comments")
 @has_many("test_models", foreign_key="postId")
 @has_many("tags", through="taggings")
 class Post(Base):
+
     def boo(self):
         return "blah"
+
 
 @belongs_to("post")
 @has_many("test_models")
 class Comment(Base):
+
     def foo(self):
         return "bar"
+
     @classmethod
     def bar(Comment):
         return "baz"
+
 
 @belongs_to("comment")
 @belongs_to("post", foreign_key="postId")
 class TestModel(Base):
     pass
 
+
 @belongs_to("post")
 @belongs_to("tag")
 class Tagging(Base):
     pass
+
+
 @has_many("posts", through="taggings")
 class Tag(Base):
     pass
+
 
 @mock.patch("lazy_record.associations.query")
 class TestBelongsTo(unittest.TestCase):
@@ -89,7 +101,7 @@ class TestBelongsTo(unittest.TestCase):
         test_model.comment
         query.Query.assert_called_with(Comment)
         q.where.assert_called_with(id=17)
-        q2.first.assert_called_with()        
+        q2.first.assert_called_with()
 
     def test_adds_foreign_key_to_attributes(self, query):
         self.assertEqual(TestModel.__attributes__["postId"], int)
@@ -107,6 +119,7 @@ class TestBelongsTo(unittest.TestCase):
     def test_allows_changing_of_parent_to_None(self, query):
         self.comment.post = None
         self.assertEqual(self.comment.post_id, None)
+
 
 @mock.patch("lazy_record.associations.query")
 class TestHasMany(unittest.TestCase):
@@ -150,6 +163,7 @@ class TestHasMany(unittest.TestCase):
     def test_adds_children_as_dependents_when_not_joined(self, query):
         self.assertIn("comments", Post.__dependents__)
 
+
 @mock.patch("lazy_record.associations.query")
 class TestHasManyThrough(unittest.TestCase):
     def setUp(self):
@@ -169,6 +183,7 @@ class TestHasManyThrough(unittest.TestCase):
 
     def test_adds_methods_for_joining_table(self, query):
         assert hasattr(self.post, "taggings")
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -11,18 +11,22 @@ import lazy_record
 
 # INTEGRATED TEST
 
+
 @has_many("persons", through="lendings")
 class Book(lazy_record.Base):
     pass
+
 
 @belongs_to("book")
 @belongs_to("person")
 class Lending(lazy_record.Base):
     pass
 
+
 @has_many("books", through="lendings")
 class Person(lazy_record.Base):
     pass
+
 
 test_schema = """
 drop table if exists persons;
@@ -44,7 +48,9 @@ create table books (
 );
 """
 
+
 class TestBuildingRecordsThroughJoin(unittest.TestCase):
+
     def setUp(self):
         lazy_record.connect_db()
         lazy_record.Repo.db.executescript(test_schema)
@@ -69,7 +75,9 @@ class TestBuildingRecordsThroughJoin(unittest.TestCase):
         assert (book.id in [b.id for b in self.person.books])
         assert (self.person.id in [p.id for p in book.persons])
 
+
 class TestDestroyingRecordsThroughJoin(unittest.TestCase):
+
     def setUp(self):
         lazy_record.connect_db()
         lazy_record.Repo.db.executescript(test_schema)
@@ -87,8 +95,8 @@ class TestDestroyingRecordsThroughJoin(unittest.TestCase):
         self.person.destroy()
         # Test that the relationship is gone
         assert len(list(self.person.books)) == 0, \
-        ("Expected self.person.books to be empty, "
-        "but it had count {}".format(len(list(self.person.books))))
+            ("Expected self.person.books to be empty, "
+             "but it had count {}".format(len(list(self.person.books))))
         # test that the book still exists
         assert Book.find(self.book.id).id == self.book.id
 
@@ -96,12 +104,14 @@ class TestDestroyingRecordsThroughJoin(unittest.TestCase):
         self.person.books.delete(self.book)
         self.person.save()
         assert len(list(self.person.books)) == 0, \
-        ("Expected self.person.books to be empty, "
-        "but it had count {}".format(len(list(self.person.books))))
+            ("Expected self.person.books to be empty, "
+             "but it had count {}".format(len(list(self.person.books))))
         assert Book.find(self.book.id).id == self.book.id
         assert Person.find(self.person.id).id == self.person.id
 
+
 class TestAddsRecords(unittest.TestCase):
+
     def setUp(self):
         lazy_record.connect_db()
         lazy_record.Repo.db.executescript(test_schema)

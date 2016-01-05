@@ -9,6 +9,7 @@ import base
 from base import Base
 import lazy_record
 
+
 class MyModel(Base):
     __attributes__ = {
         "name": str,
@@ -16,13 +17,16 @@ class MyModel(Base):
     __validates__ = {
         "name": lambda name: name != "invalid"
     }
+
     def my_childs():
         pass
+
 
 @mock.patch("base.datetime")
 @mock.patch("base.Repo")
 @mock.patch("base.query_methods.Query")
 class TestBase(unittest.TestCase):
+
     def test_creates_records(self, Query, Repo, datetime):
         Repo.table_name.return_value = "my_model"
         my_record = MyModel(name="me")
@@ -30,9 +34,9 @@ class TestBase(unittest.TestCase):
         Repo.table_name.assert_called_with(MyModel)
         Repo.assert_called_with("my_model")
         repo = Repo.return_value
-        repo.insert.assert_called_with(
-            name="me",
-            created_at=datetime.date.today.return_value)
+        today = datetime.date.today.return_value
+        repo.insert.assert_called_with(name="me",
+                                       created_at=today)
 
     def test_updates_records(self, Query, Repo, datetime):
         Repo.table_name.return_value = "my_model"
@@ -45,9 +49,9 @@ class TestBase(unittest.TestCase):
         repo = Repo.return_value
         repo.where.assert_called_with(id=3)
         where = repo.where.return_value
-        where.update.assert_called_with(
-            name="foo",
-            created_at=datetime.date.today.return_value)
+        today = datetime.date.today.return_value
+        where.update.assert_called_with(name="foo",
+                                        created_at=today)
 
     def test_does_not_create_invalid_records(self, Query, Repo, datetime):
         Repo.table_name.return_value = "my_model"
@@ -100,7 +104,7 @@ class TestBase(unittest.TestCase):
         where.first.return_value = None
         with self.assertRaises(lazy_record.RecordNotFound) as e:
             MyModel.find_by(name="foo")
-        self.assertEqual(e.exception.message, {'name':'foo'})
+        self.assertEqual(e.exception.message, {'name': 'foo'})
 
     def test_allows_searching_of_records_by_attribute(self, Query, Repo, dt):
         MyModel.where(name="foo")
@@ -126,7 +130,7 @@ class TestBase(unittest.TestCase):
 
     def test_creates_from_dictionary(self, Query, Repo, datetime):
         m = MyModel.from_dict(id=1, name="foo",
-            created_at=datetime.date.today.return_value)
+                              created_at=datetime.date.today.return_value)
         self.assertEqual(m.id, 1)
         self.assertEqual(m.name, "foo")
         self.assertEqual(m.created_at, datetime.date.today.return_value)
@@ -192,10 +196,12 @@ class TestBase(unittest.TestCase):
     def test_repr_displays_meaningful_represenation(self, Query, Repo, dt):
         m = MyModel()
         self.assertEqual(repr(m),
-            "MyModel(id=None, name=None, created_at=None)")
+                         "MyModel(id=None, name=None, created_at=None)")
+
 
 @mock.patch("base.Repo")
 class TestBaseDestroy(unittest.TestCase):
+
     def setUp(self):
         self.my_model = MyModel(name="hi")
         self.my_model._id = 5

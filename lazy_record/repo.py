@@ -1,8 +1,10 @@
 import re
 import sqlite3
 
+
 class Invalid(Exception):
     pass
+
 
 class Repo(object):
     """
@@ -33,9 +35,9 @@ class Repo(object):
         """
         ordered_items = self._build_where(restrictions)
         self.where_clause = "where {query} ".format(
-            query = " and ".join("{table}.{attr} == ?".format(
-                table = pair[0],
-                attr = pair[1]
+            query=" and ".join("{table}.{attr} == ?".format(
+                table=pair[0],
+                attr=pair[1]
             ) for pair in ordered_items)
         )
         self.where_values = [pair[2] for pair in ordered_items]
@@ -85,12 +87,12 @@ class Repo(object):
         # add support for multi-level joins
         if self.inner_join_table:
             return ("inner join {foreign_table} on "
-                   "{foreign_table}.{foreign_on} == "
-                   "{local_table}.{local_on} ").format(
-                       foreign_table = self.inner_join_table,
-                       foreign_on = self.foreign_on,
-                       local_table = self.table_name,
-                       local_on = self.local_on,
+                    "{foreign_table}.{foreign_on} == "
+                    "{local_table}.{local_on} ").format(
+                       foreign_table=self.inner_join_table,
+                       foreign_on=self.foreign_on,
+                       local_table=self.table_name,
+                       local_on=self.local_on,
                    )
         else:
             return ""
@@ -109,12 +111,13 @@ class Repo(object):
             "{table}.{attr}".format(table=self.table_name, attr=attr)
             for attr in attributes
         ]
-        cmd = 'select {attrs} from {table} {join_clause}{where_clause}{order_clause}'.format(
-            table = self.table_name,
-            attrs = ", ".join(namespaced_attributes),
-            where_clause = self.where_clause,
-            join_clause = self.join_clause,
-            order_clause= self.order_clause,
+        cmd = ('select {attrs} from {table} '
+               '{join_clause}{where_clause}{order_clause}').format(
+            table=self.table_name,
+            attrs=", ".join(namespaced_attributes),
+            where_clause=self.where_clause,
+            join_clause=self.join_clause,
+            order_clause=self.order_clause,
         ).rstrip()
         return Repo.db.execute(cmd, self.where_values)
 
@@ -128,9 +131,9 @@ class Repo(object):
         # Ensure that order is preserved
         data = data.items()
         cmd = "insert into {table} ({attrs}) values ({values})".format(
-            table = self.table_name,
-            attrs = ", ".join(entry[0] for entry in data),
-            values = ", ".join(["?"] * len(data)),
+            table=self.table_name,
+            attrs=", ".join(entry[0] for entry in data),
+            values=", ".join(["?"] * len(data)),
         )
         handle = Repo.db.execute(cmd, [entry[1] for entry in data])
         # Return the id of the added row
@@ -147,13 +150,13 @@ class Repo(object):
         UPDATE foos SET name = "bar"
         """
         data = data.items()
-        update_command_arg = ", ".join("{} = ?".format(entry[0]) for entry in data)
+        update_command_arg = ", ".join("{} = ?".format(entry[0])
+                                       for entry in data)
         cmd = "update {table} set {update_command_arg} {where_clause}".format(
             update_command_arg=update_command_arg,
             where_clause=self.where_clause,
             table=self.table_name).rstrip()
-        Repo.db.execute(cmd,
-            [entry[1] for entry in data] + self.where_values)
+        Repo.db.execute(cmd, [entry[1] for entry in data] + self.where_values)
 
     def delete(self):
         """
@@ -182,6 +185,5 @@ class Repo(object):
         interact with the database.
         """
         Repo.db = sqlite3.connect(database,
-            detect_types=sqlite3.PARSE_DECLTYPES)
+                                  detect_types=sqlite3.PARSE_DECLTYPES)
         return Repo.db
-    

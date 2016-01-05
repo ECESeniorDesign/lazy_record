@@ -9,7 +9,9 @@ sys.path.insert(0, os.path.join(
 import typecasts
 import datetime
 
+
 class TestTypes(unittest.TestCase):
+
     def test_date_casts_date_to_date(self):
         self.assertEqual(datetime.date(2016, 1, 1),
             typecasts.date(datetime.date(2016, 1, 1)))

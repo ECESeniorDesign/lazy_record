@@ -9,9 +9,11 @@ from query import Query, Repo
 import datetime
 import query
 
+
 class TunaCasserole(object):
     __attributes__ = {"my_attr": int}
     __foreign_keys__ = {"tuna_casserole": "tuna_casserole_id"}
+
     def __init__(self, **kwargs):
         self._related_records = []
         for k, v in kwargs.items():
@@ -20,6 +22,7 @@ class TunaCasserole(object):
     @classmethod
     def from_dict(TunaCasserole, **kwargs):
         return "mytestvalue"
+
 
 @mock.patch("query.Repo")
 class TestQuery(unittest.TestCase):
@@ -38,9 +41,10 @@ class TestQuery(unittest.TestCase):
 
     def test_constructs_object_with_information(self, Repo):
         repo = Repo.return_value
-        repo.select.return_value = mock.Mock(
-            fetchall=mock.Mock(
-                return_value=[{"id": 2, "my_attr": 15, "created_at": 33}]))
+        fetchall_return = [{"id": 2, "my_attr": 15, "created_at": 33}]
+        fetchall = mock.Mock(return_value=fetchall_return)
+        select_mock = mock.Mock(fetchall=fetchall)
+        repo.select.return_value = mock.Mock(fetchall=fetchall)
         self.assertEqual(list(Query(TunaCasserole).all())[0], "mytestvalue")
 
     def test_where_restricts_query(self, Repo):
@@ -73,11 +77,12 @@ class TestQuery(unittest.TestCase):
 
     def test_raises_on_multiple_orders(self, Repo):
         with self.assertRaises(query.QueryInvalid):
-            list(Query(TunaCasserole).order_by(id="desc").order_by(id="asc").all())
+            q = Query(TunaCasserole).order_by(id="desc").order_by(id="asc")
+            list(q.all())
 
     def test_gets_first_record(self, Repo):
-        self.assertEqual("mytestvalue",
-            Query(TunaCasserole).where(my_attr=5).where(id=7).first())
+        record = Query(TunaCasserole).where(my_attr=5).where(id=7).first()
+        self.assertEqual("mytestvalue", record)
         repo = Repo.return_value
         repo.where.assert_called_with(my_attr=5, id=7)
         where = repo.where.return_value
@@ -86,8 +91,8 @@ class TestQuery(unittest.TestCase):
         where.select.return_value.fetchone.assert_called_once_with()
 
     def test_gets_last_record(self, Repo):
-        self.assertEqual("mytestvalue",
-            Query(TunaCasserole).where(my_attr=5).where(id=7).last())
+        record = Query(TunaCasserole).where(my_attr=5).where(id=7).last()
+        self.assertEqual("mytestvalue", record)
         repo = Repo.return_value
         repo.where.assert_called_with(my_attr=5, id=7)
         where = repo.where.return_value
@@ -98,8 +103,8 @@ class TestQuery(unittest.TestCase):
         order.select.return_value.fetchone.assert_called_once_with()
 
     def test_gets_last_record_with_existing_sort(self, Repo):
-        self.assertEqual("mytestvalue",
-            Query(TunaCasserole).where(my_attr=5).order_by(id="desc").last())
+        r = Query(TunaCasserole).where(my_attr=5).order_by(id="desc").last()
+        self.assertEqual("mytestvalue", r)
         repo = Repo.return_value
         repo.where.assert_called_with(my_attr=5)
         where = repo.where.return_value
@@ -109,23 +114,22 @@ class TestQuery(unittest.TestCase):
             "id", "created_at", "my_attr")
         order.select.return_value.fetchone.assert_called_once_with()
 
-
     def test_joins_tables(self, Repo):
         Repo.table_name.return_value = "tuna_casseroles"
         list(Query(TunaCasserole).joins("my_relations"))
         repo = Repo.return_value
         repo.inner_join.assert_called_with("my_relations",
-            on=["tuna_casserole_id", "id"])
+                                           on=["tuna_casserole_id", "id"])
         join = repo.inner_join.return_value
         join.select.assert_called_with(
             "id", "created_at", "my_attr")
 
     def test_builds_simple_related_records(self, Repo):
-        record = Query(TunaCasserole).where(my_attr = 11).build()
+        record = Query(TunaCasserole).where(my_attr=11).build()
         self.assertEqual(record.my_attr, 11)
 
     def test_builds_simple_related_records_with_args(self, Repo):
-        record = Query(TunaCasserole).where(my_attr = 11).build(my_attr=12)
+        record = Query(TunaCasserole).where(my_attr=11).build(my_attr=12)
         self.assertEqual(record.my_attr, 12)
 
     def test_unrelates_records(self, Repo):
@@ -141,11 +145,11 @@ class TestQuery(unittest.TestCase):
 
     def test_displays_as_query_with_records(self, Repo):
         Repo.return_value.select.return_value.fetchall.return_value = [
-            (1,7,datetime.date(2016, 1, 1))]
+            (1, 7, datetime.date(2016, 1, 1))]
         # Recall that TunaCasserole overrides #from_dict to return
         # 'mytestvalue' so that is what it will repr as
         self.assertEqual(repr(Query(TunaCasserole)),
-            "<lazy_record.Query ['mytestvalue']>")
+                         "<lazy_record.Query ['mytestvalue']>")
 
 if __name__ == '__main__':
     unittest.main()

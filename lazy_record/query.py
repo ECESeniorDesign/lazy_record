@@ -1,6 +1,7 @@
 from repo import Repo
 import associations
 
+
 class Query(object):
     """
     Generic Query object used for searching a database for records, and
@@ -95,7 +96,7 @@ class Query(object):
             repo = repo.where(**self.where_query)
         if self.join_table:
             repo = repo.inner_join(self.join_table,
-                on=[self.table[:-1] + "_id", "id"])
+                                   on=[self.table[:-1] + "_id", "id"])
         if self._order_with:
             repo = repo.order_by(**self._order_with)
         return repo.select(*self.attributes)

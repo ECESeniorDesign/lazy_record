@@ -1,10 +1,12 @@
-__author__ = "Chase Conklin"
-
 from query import Query
 from repo import Repo
 from base import Base
 from errors import *
 from typecasts import *
+
+
+__author__ = "Chase Conklin"
+
 
 def connect_db(database_name=":memory:"):
     """
@@ -15,6 +17,7 @@ def connect_db(database_name=":memory:"):
     base.Repo.db = db
     query.Repo.db = db
     Repo.db = db
+
 
 def close_db():
     """

@@ -8,6 +8,7 @@ from lazy_record.errors import *
 import query_methods
 from validations import Validations
 
+
 class Base(query_methods.QueryMethods, Validations):
     __attributes__ = {}
     __foreign_keys__ = {}
@@ -43,17 +44,12 @@ class Base(query_methods.QueryMethods, Validations):
         >>> record.my_val
         11
         """
-        if attr == "id":
-            if self._id:
-                return self._id
-            else:
-                return None
-        elif attr == "created_at":
-            return self._created_at
-        elif attr in self.__class__.__attributes__:
+        def identity(val): return val
+        attr_dict = self.__class__.__attributes__
+        if attr in attr_dict or attr in ("id", "created_at"):
             value = self.__getattribute__("_" + attr)
             if value is not None:
-                return self.__class__.__attributes__[attr](value)
+                return attr_dict.get(attr, identity)(value)
             else:
                 return None
         else:
@@ -80,7 +76,7 @@ class Base(query_methods.QueryMethods, Validations):
         elif name in self.__class__.__attributes__:
             if value is not None:
                 setattr(self, "_" + name,
-                    self.__class__.__attributes__[name](value))
+                        self.__class__.__attributes__[name](value))
             else:
                 setattr(self, "_" + name, None)
         else:
@@ -136,12 +132,12 @@ class Base(query_methods.QueryMethods, Validations):
         self.validate()
         if self.id:
             attrs = list(self.__class__.__attributes__) + ["created_at"]
-            data = { attr: getattr(self, attr) for attr in attrs }
+            data = {attr: getattr(self, attr) for attr in attrs}
             Repo(self.__table).where(id=self.id).update(**data)
         else:
             attrs = list(self.__class__.__attributes__) + ["created_at"]
             self._created_at = datetime.date.today()
-            data = { attr: getattr(self, attr) for attr in attrs }
+            data = {attr: getattr(self, attr) for attr in attrs}
             self.__id = int(Repo(self.__table).insert(**data))
 
     def _finish_save(self):
