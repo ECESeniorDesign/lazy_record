@@ -90,6 +90,13 @@ class TestQuery(unittest.TestCase):
             "id", "created_at", "my_attr")
         where.select.return_value.fetchone.assert_called_once_with()
 
+    def test_first_returns_None_if_no_first_record(self, Repo):
+        repo = Repo.return_value
+        where = repo.where.return_value
+        where.select.return_value.fetchone.return_value = None
+        record = Query(TunaCasserole).where(my_attr=5).where(id=7).first()
+        self.assertEqual(None, record)
+
     def test_gets_last_record(self, Repo):
         record = Query(TunaCasserole).where(my_attr=5).where(id=7).last()
         self.assertEqual("mytestvalue", record)
@@ -102,6 +109,14 @@ class TestQuery(unittest.TestCase):
             "id", "created_at", "my_attr")
         order.select.return_value.fetchone.assert_called_once_with()
 
+    def test_last_returns_None_if_no_last_record(self, Repo):
+        repo = Repo.return_value
+        where = repo.where.return_value
+        order = where.order_by.return_value
+        order.select.return_value.fetchone.return_value = None
+        record = Query(TunaCasserole).where(my_attr=5).where(id=7).last()
+        self.assertEqual(None, record)
+
     def test_gets_last_record_with_existing_sort(self, Repo):
         r = Query(TunaCasserole).where(my_attr=5).order_by(id="desc").last()
         self.assertEqual("mytestvalue", r)
@@ -113,6 +128,14 @@ class TestQuery(unittest.TestCase):
         order.select.assert_called_with(
             "id", "created_at", "my_attr")
         order.select.return_value.fetchone.assert_called_once_with()
+
+    def test_gets_last_record_with_existing_sort_with_no_record(self, Repo):
+        repo = Repo.return_value
+        where = repo.where.return_value
+        order = where.order_by.return_value
+        order.select.return_value.fetchone.return_value = None
+        r = Query(TunaCasserole).where(my_attr=5).order_by(id="desc").last()
+        self.assertEqual(None, r)
 
     def test_joins_tables(self, Repo):
         Repo.table_name.return_value = "tuna_casseroles"
@@ -150,6 +173,9 @@ class TestQuery(unittest.TestCase):
         # 'mytestvalue' so that is what it will repr as
         self.assertEqual(repr(Query(TunaCasserole)),
                          "<lazy_record.Query ['mytestvalue']>")
+
+    def test_class_displays_as_though_it_was_in_lazy_record(self, Repo):
+        self.assertEqual(repr(Query), "<class 'lazy_record.Query'>")
 
 if __name__ == '__main__':
     unittest.main()
