@@ -171,9 +171,9 @@ class Query(object):
             else:
                 # Add our id to their foreign key so that the relationship is
                 # created
-                foreign_key = record.__class__.__foreign_keys__[
-                    Repo.table_name(self.record.__class__)[:-1]]
-                setattr(record, foreign_key, self.record.id)
+                setattr(record,
+                        foreign_key(record, self.record),
+                        self.record.id)
                 # Add to the list of related records so that it is saved when
                 # we are
                 self.record._related_records.append(record)
@@ -198,10 +198,7 @@ class Query(object):
                 # mark the joining record to be destroyed the primary is saved
                 self.record._delete_related_records.append(related_record)
             else:
-                record_class_name = Repo.table_name(record.__class__)[:-1]
-                foreign_key = record.__class__.__foreign_keys__[
-                    record_class_name]
-                setattr(record, foreign_key, None)
+                setattr(record, foreign_key(record, self.record), None)
                 # Ensure that the change is persisted on save
                 self.record._related_records.append(record)
 
@@ -223,6 +220,12 @@ class Query(object):
     class __metaclass__(type):
         def __repr__(self):
             return "<class 'lazy_record.Query'>"
+
+
+def foreign_key(local, foreign):
+    local_class = local.__class__
+    foreign_class = foreign.__class__
+    return local_class.__foreign_keys__[Repo.table_name(foreign_class)[:-1]]
 
 # Here to prevent circular import loop
 from lazy_record.errors import *
