@@ -13,6 +13,7 @@ class Base(object):
     __dependents__ = []
     __attributes__ = {}
     __foreign_keys__ = {}
+    __associations__ = {}
 
 
 @has_many("comments")
@@ -120,6 +121,9 @@ class TestBelongsTo(unittest.TestCase):
         self.comment.post = None
         self.assertEqual(self.comment.post_id, None)
 
+    def test_does_not_add_entry_to_relationships(self, query):
+        self.assertNotIn("post", Comment.__associations__)
+
 
 @mock.patch("lazy_record.associations.query")
 class TestHasMany(unittest.TestCase):
@@ -163,6 +167,10 @@ class TestHasMany(unittest.TestCase):
     def test_adds_children_as_dependents_when_not_joined(self, query):
         self.assertIn("comments", Post.__dependents__)
 
+    def test_adds_entry_to_relationships(self, query):
+        self.assertIn("comments", Post.__associations__)
+        self.assertEqual(Post.__associations__["comments"], None)
+
 
 @mock.patch("lazy_record.associations.query")
 class TestHasManyThrough(unittest.TestCase):
@@ -183,6 +191,10 @@ class TestHasManyThrough(unittest.TestCase):
 
     def test_adds_methods_for_joining_table(self, query):
         assert hasattr(self.post, "taggings")
+
+    def test_adds_entry_to_relationships(self, query):
+        self.assertIn("tags", Post.__associations__)
+        self.assertEqual(Post.__associations__["tags"], "taggings")
 
 
 if __name__ == '__main__':

@@ -24,6 +24,7 @@ class Lending(lazy_record.Base):
 
 
 @has_many("books", through="lendings")
+@has_many("lendings")
 class Person(lazy_record.Base):
     pass
 
@@ -49,6 +50,40 @@ create table books (
 """
 
 
+class TestGettingRecordsThroughJoin(unittest.TestCase):
+
+    def setUp(self):
+        lazy_record.connect_db()
+        lazy_record.Repo.db.executescript(test_schema)
+        lazy_record.Repo.db.commit()
+        self.person = Person()
+        self.person.save()
+        self.book = Book()
+        self.book.save()
+        Lending(person_id=self.person.id, book_id=self.book.id).save()
+
+    def tearDown(self):
+        lazy_record.close_db()
+
+    def test_finds_records_through_many_to_many(self):
+        person = Person()
+        person.save()
+        query = Person.joins("books")
+        # Join finds the related record
+        assert (self.person.id in [p.id for p in query])
+        # Join does NOT find the unrelated record
+        assert (person.id not in [p.id for p in query])
+
+    def test_finds_records_through_one_to_many(self):
+        person = Person()
+        person.save()
+        query = Person.joins("lendings")
+        # Join finds the related record
+        assert (self.person.id in [p.id for p in query])
+        # Join does NOT find the unrelated record
+        assert (person.id not in [p.id for p in query])
+
+@unittest.skip("WIP")
 class TestBuildingRecordsThroughJoin(unittest.TestCase):
 
     def setUp(self):
@@ -76,6 +111,7 @@ class TestBuildingRecordsThroughJoin(unittest.TestCase):
         assert (self.person.id in [p.id for p in book.persons])
 
 
+@unittest.skip("WIP")
 class TestDestroyingRecordsThroughJoin(unittest.TestCase):
 
     def setUp(self):
@@ -110,6 +146,7 @@ class TestDestroyingRecordsThroughJoin(unittest.TestCase):
         assert Person.find(self.person.id).id == self.person.id
 
 
+@unittest.skip("WIP")
 class TestAddsRecords(unittest.TestCase):
 
     def setUp(self):

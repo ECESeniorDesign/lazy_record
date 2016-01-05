@@ -51,8 +51,9 @@ class TestRepo(unittest.TestCase):
             [5])
 
     def test_joins_tables(self, db):
-        Repo("tuna_casseroles").inner_join("my_relations",
-            on=["tuna_casserole_id", "id"]).select("id", "created_at")
+        Repo("tuna_casseroles").inner_join(
+            {'table': "my_relations", 'on': ["tuna_casserole_id", "id"]}
+            ).select("id", "created_at")
         db.execute.assert_called_once_with(
             "select tuna_casseroles.id, tuna_casseroles.created_at "
             "from tuna_casseroles "
@@ -60,10 +61,28 @@ class TestRepo(unittest.TestCase):
             "my_relations.tuna_casserole_id == tuna_casseroles.id",
             [])
 
+    def test_joins_multiple_tables(self, db):
+        # Repo("tuna_casseroles").inner_join("my_relations",
+        #     on=["tuna_casserole_id", "id"]).inner_join("my_others",
+        #     on=["id", "my_other_id"]).select("id", "created_at")
+        Repo("tuna_casseroles").inner_join(
+            {'table': "my_relations", 'on': ["tuna_casserole_id", "id"]},
+            {'table': "my_others", 'on': ["id", "my_other_id"]}
+            ).select("id", "created_at")
+        db.execute.assert_called_once_with(
+            "select tuna_casseroles.id, tuna_casseroles.created_at "
+            "from tuna_casseroles "
+            "inner join my_relations on "
+            "my_relations.tuna_casserole_id == tuna_casseroles.id "
+            "inner join my_others on "
+            "my_others.id == my_relations.my_other_id",
+            [])
+
     def test_joins_tables_with_where(self, db):
-        Repo("tuna_casseroles").inner_join("my_relations",
-            on=["tuna_casserole_id", "id"]).where(
-            my_relations=dict(my_attr=5)).select("id", "created_at")
+        Repo("tuna_casseroles").inner_join(
+            {'table': "my_relations", 'on': ["tuna_casserole_id", "id"]}
+            ).where(my_relations=dict(my_attr=5)
+            ).select("id", "created_at")
         db.execute.assert_called_once_with(
             "select tuna_casseroles.id, tuna_casseroles.created_at "
             "from tuna_casseroles "

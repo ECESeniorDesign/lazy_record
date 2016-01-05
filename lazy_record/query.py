@@ -1,6 +1,7 @@
 from repo import Repo
-import associations
-
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 class Query(object):
     """
@@ -19,7 +20,7 @@ class Query(object):
         self.model = model
         self.record = record
         self.where_query = {}
-        self.join_table = None
+        self.join_args = []
         self._order_with = {}
         self.attributes = ["id", "created_at"] + \
             list(self.model.__attributes__)
@@ -84,19 +85,51 @@ class Query(object):
 
     def joins(self, table):
         """
-        Analog to "INNER JOIN" in SQL on the passed +table+. Currently only
-        supports one deep joins.
+        Analog to "INNER JOIN" in SQL on the passed +table+. Use only once
+        per query.
         """
-        self.join_table = table
+
+        def do_join(table, model):
+            while model is not associations.model_from_name(table[:-1]):
+                # ex) Category -> Forum -> Thread -> Post
+                # Category: {"posts": "forums"}
+                # Forum: {"posts": "threads"}
+                # Thread: {"posts": None}
+                # >>> Category.joins("posts")
+                # => [
+                #       {'table': 'forums', 'on': ['category_id', 'id']}
+                #       {'table': 'threads', 'on': ['forum_id', 'id']}
+                #       {'table': 'posts', 'on': ['thread_id', 'id']}
+                #    ]
+                if table in model.__associations__:
+                    # This to next: one-many (they have the fk)
+                    # If model.__associations__[table] is None, then this is
+                    # terminal (i.e. table is the FINAL association in the
+                    # chain)
+                    next_level = model.__associations__[table] or table
+                    next_model = associations.model_from_name(next_level[:-1])
+                    this_table_name = Repo.table_name(model)
+                    foreign_key = model.__foreign_keys__.get(
+                        next_level,
+                        this_table_name[:-1] + "_id")
+                    yield {'table': next_level, 'on': [foreign_key, 'id']}
+                else:
+                    # This to next: many-one (we have the fk)
+                    foreign_key = model.__foreign_keys__.get(
+                        table, table[:-1] + "_id")
+                    yield {'table': table, 'on': ['id', foreign_key]}
+                    next_model = associations.model_from_name(table[:-1])
+                model = next_model
+
+        self.join_args = list(do_join(table, self.model))
         return self
 
     def _do_query(self):
         repo = Repo(self.table)
         if self.where_query:
             repo = repo.where(**self.where_query)
-        if self.join_table:
-            repo = repo.inner_join(self.join_table,
-                                   on=[self.table[:-1] + "_id", "id"])
+        if self.join_args:
+            repo = repo.inner_join(*self.join_args)
         if self._order_with:
             repo = repo.order_by(**self._order_with)
         return repo.select(*self.attributes)
@@ -229,3 +262,4 @@ def foreign_key(local, foreign):
 
 # Here to prevent circular import loop
 from lazy_record.errors import *
+import lazy_record.associations as associations

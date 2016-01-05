@@ -13,6 +13,7 @@ class Base(query_methods.QueryMethods, Validations):
     __attributes__ = {}
     __foreign_keys__ = {}
     __dependents__ = []
+    __associations__ = {}
 
     def __init__(self, **kwargs):
         """
