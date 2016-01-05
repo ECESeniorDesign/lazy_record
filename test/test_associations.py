@@ -2,8 +2,8 @@ import unittest
 import mock
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
-sys.path.append(os.path.join(
+sys.path.insert(0, os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+sys.path.insert(0, os.path.join(
     os.path.dirname(os.path.abspath(os.path.dirname(__file__))),
     "lazy_record"))
 from lazy_record.associations import *

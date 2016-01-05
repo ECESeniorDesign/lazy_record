@@ -78,7 +78,11 @@ class Base(query_methods.QueryMethods, Validations):
         if name in ("id", "created_at"):
             raise AttributeError("Cannot set '{}'".format(name))
         elif name in self.__class__.__attributes__:
-            setattr(self, "_" + name, self.__class__.__attributes__[name](value))
+            if value is not None:
+                setattr(self, "_" + name,
+                    self.__class__.__attributes__[name](value))
+            else:
+                setattr(self, "_" + name, None)
         else:
             super(Base, self).__setattr__(name, value)
 

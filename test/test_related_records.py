@@ -1,8 +1,9 @@
 import unittest
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
-sys.path.append(os.path.join(
+# This way, we pick the lazy_record local even if one is installed
+sys.path.insert(0, os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+sys.path.insert(0, os.path.join(
     os.path.dirname(os.path.abspath(os.path.dirname(__file__))),
     "lazy_record"))
 from lazy_record.associations import *
@@ -51,6 +52,9 @@ class TestBuildingRecordsThroughJoin(unittest.TestCase):
         self.person = Person()
         self.person.save()
 
+    def tearDown(self):
+        lazy_record.close_db()
+
     def test_creates_records_and_intermediates(self):
         book = self.person.books.build()
         book.save()
@@ -76,6 +80,9 @@ class TestDestroyingRecordsThroughJoin(unittest.TestCase):
         self.book.save()
         Lending(person_id=self.person.id, book_id=self.book.id).save()
 
+    def tearDown(self):
+        lazy_record.close_db()
+
     def test_deletes_only_join_record(self):
         self.person.destroy()
         # Test that the relationship is gone
@@ -93,6 +100,26 @@ class TestDestroyingRecordsThroughJoin(unittest.TestCase):
         "but it had count {}".format(len(list(self.person.books))))
         assert Book.find(self.book.id).id == self.book.id
         assert Person.find(self.person.id).id == self.person.id
+
+class TestAddsRecords(unittest.TestCase):
+    def setUp(self):
+        lazy_record.connect_db()
+        lazy_record.Repo.db.executescript(test_schema)
+        lazy_record.Repo.db.commit()
+        self.person = Person()
+        self.person.save()
+        self.book = Book()
+        self.book.save()
+
+    def tearDown(self):
+        lazy_record.close_db()
+
+    def test_appends_records_without_join(self):
+        lending = Lending(person_id=self.person.id)
+        self.book.lendings.append(lending)
+        self.book.save()
+        assert (self.book.id in [b.id for b in self.person.books])
+        assert (self.person.id in [p.id for p in self.book.persons])
 
 if __name__ == '__main__':
     unittest.main()

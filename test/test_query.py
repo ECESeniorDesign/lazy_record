@@ -6,6 +6,7 @@ sys.path.append(os.path.join(
     os.path.dirname(os.path.abspath(os.path.dirname(__file__))),
     "lazy_record"))
 from query import Query, Repo
+import datetime
 import query
 
 class TunaCasserole(object):
@@ -133,6 +134,18 @@ class TestQuery(unittest.TestCase):
         t2 = TunaCasserole(tuna_casserole_id=15)
         Query(TunaCasserole, record=t).delete(t2)
         self.assertEqual(t2.tuna_casserole_id, None)
+
+    def test_displays_as_empty_query(self, Repo):
+        Repo.return_value.select.return_value.fetchall.return_value = []
+        self.assertEqual(repr(Query(TunaCasserole)), "<lazy_record.Query []>")
+
+    def test_displays_as_query_with_records(self, Repo):
+        Repo.return_value.select.return_value.fetchall.return_value = [
+            (1,7,datetime.date(2016, 1, 1))]
+        # Recall that TunaCasserole overrides #from_dict to return
+        # 'mytestvalue' so that is what it will repr as
+        self.assertEqual(repr(Query(TunaCasserole)),
+            "<lazy_record.Query ['mytestvalue']>")
 
 if __name__ == '__main__':
     unittest.main()

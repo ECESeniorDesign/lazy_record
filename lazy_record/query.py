@@ -1,6 +1,5 @@
 from repo import Repo
 import associations
-from lazy_record.errors import *
 
 class Query(object):
     """
@@ -169,6 +168,13 @@ class Query(object):
                     **self._related_args(record, related_class))
                 self.record._related_records.append(related_record)
             else:
+                # Add our id to their foreign key so that the relationship is
+                # created
+                foreign_key = record.__class__.__foreign_keys__[
+                    Repo.table_name(self.record.__class__)[:-1]]
+                setattr(record, foreign_key, self.record.id)
+                # Add to the list of related records so that it is saved when
+                # we are
                 self.record._related_records.append(record)
 
     def delete(self, record):
@@ -216,3 +222,6 @@ class Query(object):
     class __metaclass__(type):
         def __repr__(self):
             return "<class 'lazy_record.Query'>"
+
+# Here to prevent circular import loop
+from lazy_record.errors import *

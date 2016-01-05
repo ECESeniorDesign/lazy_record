@@ -4,7 +4,7 @@ from query import Query
 from repo import Repo
 from base import Base
 from errors import *
-from types import *
+from typecasts import *
 
 def connect_db(database_name=":memory:"):
     """

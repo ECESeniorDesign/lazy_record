@@ -7,6 +7,7 @@ sys.path.append(os.path.join(
     "lazy_record"))
 import base
 from base import Base
+import lazy_record
 
 class MyModel(Base):
     __attributes__ = {
@@ -85,7 +86,7 @@ class TestBase(unittest.TestCase):
         where = query.where.return_value
         where.first.assert_called_once_with()
 
-    def test_allows_finding_of_records_by_attribute(self, Query, Repo, datetime):
+    def test_allows_finding_of_records_by_attribute(self, Query, Repo, dt):
         MyModel.find_by(name="foo")
         Query.assert_called_with(MyModel)
         query = Query.return_value
@@ -93,7 +94,15 @@ class TestBase(unittest.TestCase):
         where = query.where.return_value
         where.first.assert_called_once_with()
 
-    def test_allows_searching_of_records_by_attribute(self, Query, Repo, datetime):
+    def test_raises_when_find_by_finds_nothing(self, Query, Repo, datetime):
+        query = Query.return_value
+        where = query.where.return_value
+        where.first.return_value = None
+        with self.assertRaises(lazy_record.RecordNotFound) as e:
+            MyModel.find_by(name="foo")
+        self.assertEqual(e.exception.message, {'name':'foo'})
+
+    def test_allows_searching_of_records_by_attribute(self, Query, Repo, dt):
         MyModel.where(name="foo")
         Query.assert_called_with(MyModel)
         query = Query.return_value
@@ -141,7 +150,7 @@ class TestBase(unittest.TestCase):
         with self.assertRaises(AttributeError):
             MyModel(id=3)
 
-    def test_forbits_instantiation_with_created_at(self, Query, Repo, datetime):
+    def test_forbits_instantiation_with_created_at(self, Query, Repo, dt):
         with self.assertRaises(AttributeError):
             MyModel(created_at=3)
 
@@ -161,6 +170,29 @@ class TestBase(unittest.TestCase):
         m = MyModel()
         m.update(name="foo")
         self.assertEqual(m.name, "foo")
+
+    def test_get_does_not_cast_attr_if_none(self, Query, Repo, datetime):
+        m = MyModel()
+        self.assertEqual(m.name, None)
+
+    def test_set_does_not_cast_attr_if_none(self, Query, Repo, datetime):
+        m = MyModel()
+        m.name = None
+        self.assertEqual(m.name, None)
+
+    def test_gets_other_attributes_without_cast(self, Query, Repo, datetime):
+        m = MyModel()
+        self.assertEqual(m.__class__, MyModel)
+
+    def test_raises_if_attribute_not_found(self, Query, Repo, datetime):
+        m = MyModel()
+        with self.assertRaises(AttributeError):
+            m.turkey
+
+    def test_repr_displays_meaningful_represenation(self, Query, Repo, dt):
+        m = MyModel()
+        self.assertEqual(repr(m),
+            "MyModel(id=None, name=None, created_at=None)")
 
 @mock.patch("base.Repo")
 class TestBaseDestroy(unittest.TestCase):
