@@ -192,6 +192,7 @@ class Query(object):
         Query(Post).where(content="foo").append(post)
         """
         if self.record:
+            self._validate_record(record)
             if self.join_args:
                 # As always, the related record is created when the primary
                 # record is saved
@@ -234,6 +235,7 @@ class Query(object):
         """
         # note: does (and should) not delete or destroy the record
         if self.record:
+            self._validate_record(record)
             if self.join_args:
                 # Need to find out who has the foreign key
                 # If record has it, set to None, then done.
@@ -276,6 +278,14 @@ class Query(object):
         related_key = related_class.__foreign_keys__[record_class_name]
         related_args[related_key] = record.id
         return related_args
+
+    def _validate_record(self, record):
+        if record.__class__ != self.model:
+            raise AssociationTypeMismatch(
+                "Expected record of type {expected}, got {actual}.".format(
+                    expected=self.model.__name__,
+                    actual=record.__class__.__name__
+                ))
 
     class __metaclass__(type):
         def __repr__(self):

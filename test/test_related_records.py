@@ -166,6 +166,13 @@ class TestDestroyingRecordsThroughJoin(unittest.TestCase):
         # Should not destroy the lending (compare with many-to-many)
         self.assertEqual(Lending.first().id, lending.id)
 
+    def test_raises_AssociationTypeMismatch_not_correct_type(self):
+        with self.assertRaises(lazy_record.AssociationTypeMismatch) as e:
+            self.person.books.delete(self.person)
+        self.assertEqual(e.exception.message,
+                         "Expected record of type Book, got Person.")
+
+
 class TestAddsRecords(unittest.TestCase):
 
     def setUp(self):
@@ -191,6 +198,12 @@ class TestAddsRecords(unittest.TestCase):
         self.person.save()
         assert (self.book.id in [b.id for b in self.person.books])
         assert (self.person.id in [p.id for p in self.book.persons])
+
+    def test_raises_AssociationTypeMismatch_not_correct_type(self):
+        with self.assertRaises(lazy_record.AssociationTypeMismatch) as e:
+            self.person.books.append(self.person)
+        self.assertEqual(e.exception.message,
+                         "Expected record of type Book, got Person.")
 
     def test_sets_record_in_init(self):
         lending = Lending(person=self.person, book=self.book)

@@ -8,3 +8,7 @@ class RecordInvalid(Exception):
 
 class QueryInvalid(Exception):
     pass
+
+
+class AssociationTypeMismatch(Exception):
+    pass
