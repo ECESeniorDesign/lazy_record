@@ -1,6 +1,7 @@
 from repo import Repo
-import associations
-
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 class Query(object):
     """
@@ -19,7 +20,7 @@ class Query(object):
         self.model = model
         self.record = record
         self.where_query = {}
-        self.join_table = None
+        self.join_args = []
         self._order_with = {}
         self.attributes = ["id", "created_at"] + \
             list(self.model.__attributes__)
@@ -84,19 +85,51 @@ class Query(object):
 
     def joins(self, table):
         """
-        Analog to "INNER JOIN" in SQL on the passed +table+. Currently only
-        supports one deep joins.
+        Analog to "INNER JOIN" in SQL on the passed +table+. Use only once
+        per query.
         """
-        self.join_table = table
+
+        def do_join(table, model):
+            while model is not associations.model_from_name(table[:-1]):
+                # ex) Category -> Forum -> Thread -> Post
+                # Category: {"posts": "forums"}
+                # Forum: {"posts": "threads"}
+                # Thread: {"posts": None}
+                # >>> Category.joins("posts")
+                # => [
+                #       {'table': 'forums', 'on': ['category_id', 'id']}
+                #       {'table': 'threads', 'on': ['forum_id', 'id']}
+                #       {'table': 'posts', 'on': ['thread_id', 'id']}
+                #    ]
+                if table in model.__associations__:
+                    # This to next: one-many (they have the fk)
+                    # If model.__associations__[table] is None, then this is
+                    # terminal (i.e. table is the FINAL association in the
+                    # chain)
+                    next_level = model.__associations__[table] or table
+                    next_model = associations.model_from_name(next_level[:-1])
+                    this_table_name = Repo.table_name(model)
+                    foreign_key = model.__foreign_keys__.get(
+                        next_level,
+                        this_table_name[:-1] + "_id")
+                    yield {'table': next_level, 'on': [foreign_key, 'id']}
+                else:
+                    # This to next: many-one (we have the fk)
+                    foreign_key = model.__foreign_keys__.get(
+                        table, table[:-1] + "_id")
+                    yield {'table': table, 'on': ['id', foreign_key]}
+                    next_model = associations.model_from_name(table[:-1])
+                model = next_model
+
+        self.join_args = list(do_join(table, self.model))
         return self
 
     def _do_query(self):
         repo = Repo(self.table)
         if self.where_query:
             repo = repo.where(**self.where_query)
-        if self.join_table:
-            repo = repo.inner_join(self.join_table,
-                                   on=[self.table[:-1] + "_id", "id"])
+        if self.join_args:
+            repo = repo.inner_join(*self.join_args)
         if self._order_with:
             repo = repo.order_by(**self._order_with)
         return repo.select(*self.attributes)
@@ -123,7 +156,7 @@ class Query(object):
         build_args = dict(self.where_query)
         build_args.update(kwargs)
         record = self.model(**build_args)
-        if self.join_table:
+        if self.join_args:
             # EXAMPLE:
             # Say we have a many-to-many relation like so:
             #   Post -> Tagging -> Tag
@@ -139,10 +172,9 @@ class Query(object):
             # Tagging(post_id = post.id) and adds it to the tag's related
             # records. The tagging's tag_id is added once the tag is saved
             # which is the first time it gets an id
-            related_class = associations.model_from_name(self.join_table[:-1])
-            related_args = build_args.get(self.join_table, {})
-            related_record = related_class(**related_args)
-            record._related_records.append(related_record)
+            relations = (arg['table'] for arg in self.join_args)
+            record._related_records += [build_relation(relation, build_args)
+                                        for relation in relations]
         return record
 
     def append(self, record):
@@ -160,14 +192,27 @@ class Query(object):
         Query(Post).where(content="foo").append(post)
         """
         if self.record:
-            if self.join_table:
+            if self.join_args:
                 # As always, the related record is created when the primary
                 # record is saved
-                related_class = associations.model_from_name(
-                    self.join_table[:-1])
-                related_record = related_class(
-                    **self._related_args(record, related_class))
-                self.record._related_records.append(related_record)
+                build_args = dict(self.where_query)
+                # The +final_join+ is what connects the record chain to the
+                # passed +record+
+                final_join = self.join_args[0]
+                final_join_args = build_args[final_join['table']]
+                # don't need to worry about one-to-many through because
+                # there is not enough information to find or create the
+                # joining record
+                # i.e. in the Forum -> Thread -> Post example
+                # forum.posts.append(post) doesn't make sense since there
+                # is no information about what thread it will be attached to
+                final_join_args[final_join['on'][0]] = getattr(
+                    record, final_join['on'][1])
+                relations = (arg['table'] for arg in self.join_args)
+                self.record._related_records += [
+                    build_relation(relation, build_args)
+                    for relation in relations]
+                # self.record._related_records.append(related_record)
             else:
                 # Add our id to their foreign key so that the relationship is
                 # created
@@ -189,14 +234,29 @@ class Query(object):
         """
         # note: does (and should) not delete or destroy the record
         if self.record:
-            if self.join_table:
-                related_class = associations.model_from_name(
-                    self.join_table[:-1])
-                # Same logic as append
-                related_record = related_class.find_by(
-                    **self._related_args(record, related_class))
-                # mark the joining record to be destroyed the primary is saved
-                self.record._delete_related_records.append(related_record)
+            if self.join_args:
+                # Need to find out who has the foreign key
+                # If record has it, set to None, then done.
+                # If one level up has it, mark the record for destruction
+                final_table = self.join_args[0]['table']
+                if final_table in self.model.__associations__:
+                    # +record+ does not have the foreign key
+                    # Find the record one level up, then mark for destruction
+                    related_class = associations.model_from_name(
+                        final_table[:-1])
+                    related_record = related_class.find_by(
+                        **self._related_args(record, related_class))
+                    # mark the joining record to be destroyed the primary is saved
+                    self.record._delete_related_records.append(related_record)
+                else:
+                    # We have the foreign key
+                    # Look up in the foreign key table, bearing in mind that
+                    # this is a belongs_to, so the entry will be singular,
+                    # whereas the table name is plural (we need to remove the
+                    # 's' at the end)
+                    key = self.model.__foreign_keys__[final_table[:-1]]
+                    # Set the foreign key to None to deassociate
+                    setattr(record, key, None)
             else:
                 setattr(record, foreign_key(record, self.record), None)
                 # Ensure that the change is persisted on save
@@ -211,8 +271,8 @@ class Query(object):
         # With that, we can look into the related class description for
         # the correct foreign key, which is set to the passed record's
         # id.
-        related_args = self.where_query.get(self.join_table, {})
         record_class_name = Repo.table_name(record.__class__)[:-1]
+        related_args = self.where_query.get(Repo.table_name(related_class), {})
         related_key = related_class.__foreign_keys__[record_class_name]
         related_args[related_key] = record.id
         return related_args
@@ -227,5 +287,10 @@ def foreign_key(local, foreign):
     foreign_class = foreign.__class__
     return local_class.__foreign_keys__[Repo.table_name(foreign_class)[:-1]]
 
+def build_relation(relation, build_args):
+    related_class = associations.model_from_name(relation[:-1])
+    return related_class(**build_args[relation])
+
 # Here to prevent circular import loop
 from lazy_record.errors import *
+import lazy_record.associations as associations

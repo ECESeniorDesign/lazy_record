@@ -49,6 +49,7 @@ class belongs_to(object):
         # Add the model to the registry of known models with associations
         models[klass.__name__] = klass
         # Set the foreign key in the model in case it needs to be looked up
+        klass.__foreign_keys__ = dict(klass.__foreign_keys__)
         klass.__foreign_keys__[self.parent_name] = self.foreign_key
 
         # Getter method for the parent record (e.g. comment.post)
@@ -114,7 +115,12 @@ class has_many(object):
         self.foreign_key = self.foreign_key or "{name}_id".format(
             name=repo.Repo.table_name(klass)[:-1])
         models[klass.__name__] = klass
+        # Add the foreign key to the fk list
+        klass.__foreign_keys__ = dict(klass.__foreign_keys__)
         klass.__foreign_keys__[self.child_name] = self.foreign_key
+        # Add the relationship to the association list
+        klass.__associations__ = dict(klass.__associations__)
+        klass.__associations__[self.child_name] = self.through
         # Add the child table (or joining table) to the classes dependents
         # so that if this record is destroyed, all related child records
         # (or joining records) are destroyed with it to prevent orphans

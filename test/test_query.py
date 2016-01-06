@@ -13,6 +13,7 @@ import query
 class TunaCasserole(object):
     __attributes__ = {"my_attr": int}
     __foreign_keys__ = {"tuna_casserole": "tuna_casserole_id"}
+    __associations__ = {"my_relations": None}
 
     def __init__(self, **kwargs):
         self._related_records = []
@@ -23,6 +24,9 @@ class TunaCasserole(object):
     def from_dict(TunaCasserole, **kwargs):
         return "mytestvalue"
 
+class MyRelations(object):
+    __foreign_keys__ = {}
+    __associations__ = {}
 
 @mock.patch("query.Repo")
 class TestQuery(unittest.TestCase):
@@ -136,16 +140,6 @@ class TestQuery(unittest.TestCase):
         order.select.return_value.fetchone.return_value = None
         r = Query(TunaCasserole).where(my_attr=5).order_by(id="desc").last()
         self.assertEqual(None, r)
-
-    def test_joins_tables(self, Repo):
-        Repo.table_name.return_value = "tuna_casseroles"
-        list(Query(TunaCasserole).joins("my_relations"))
-        repo = Repo.return_value
-        repo.inner_join.assert_called_with("my_relations",
-                                           on=["tuna_casserole_id", "id"])
-        join = repo.inner_join.return_value
-        join.select.assert_called_with(
-            "id", "created_at", "my_attr")
 
     def test_builds_simple_related_records(self, Repo):
         record = Query(TunaCasserole).where(my_attr=11).build()

@@ -20,7 +20,7 @@ class Repo(object):
         self.table_name = table_name
         self.where_clause = ""
         self.where_values = []
-        self.inner_join_table = None
+        self.inner_joins = []
         self.order_clause = ""
 
     def where(self, **restrictions):
@@ -55,14 +55,29 @@ class Repo(object):
                     yield (default_table, key, value)
         return list(builder(where_query, self.table_name))
 
-    def inner_join(self, table, on):
+    def inner_join(self, *joiners):
         """
-        Analog to SQL "INNER JOIN" on +table+. +on+ is a 2-tuple of type
-        (foreign col, local col).
+        Analog to SQL "INNER JOIN". +joiners+ is a list with entries of the
+        form:
+
+        {
+            'table': <table_name>,
+            'on': [<foreign_key>, <local_id>]
+        }
+
+        Example:
+
+        >>> Repo('bs').inner_join(
+            {'table': 'cs', on: ['b_id', 'id']}).select("*")
+        SELECT bs.* FROM bs INNER JOIN cs ON cs.b_id == bs.id
         """
-        self.inner_join_table = table
-        self.foreign_on = on[0]
-        self.local_on = on[1]
+        def inner_joins(js, current_table):
+            for joiner in js:
+                yield (((current_table, joiner['on'][1]),
+                        (joiner['table'], joiner['on'][0])))
+                current_table = joiner['table']
+
+        self.inner_joins = list(inner_joins(joiners, self.table_name))
         return self
 
     def order_by(self, **kwargs):
@@ -85,17 +100,14 @@ class Repo(object):
     def join_clause(self):
         # Internal use only, but the API should be stable, except for when we
         # add support for multi-level joins
-        if self.inner_join_table:
-            return ("inner join {foreign_table} on "
-                    "{foreign_table}.{foreign_on} == "
-                    "{local_table}.{local_on} ").format(
-                       foreign_table=self.inner_join_table,
-                       foreign_on=self.foreign_on,
-                       local_table=self.table_name,
-                       local_on=self.local_on,
-                   )
-        else:
-            return ""
+        return "".join(("inner join {foreign_table} on "
+                "{foreign_table}.{foreign_on} == "
+                "{local_table}.{local_on} ").format(
+                   foreign_table=inner_join[1][0],
+                   foreign_on=inner_join[1][1],
+                   local_table=inner_join[0][0],
+                   local_on=inner_join[0][1],
+               ) for inner_join in self.inner_joins)
 
     def select(self, *attributes):
         """
