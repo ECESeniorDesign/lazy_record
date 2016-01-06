@@ -1,5 +1,4 @@
 from query import Query
-from repo import Repo
 from base import Base
 from errors import *
 from typecasts import *
@@ -16,7 +15,6 @@ def connect_db(database_name=":memory:"):
     db = repo.Repo.connect_db(database_name)
     base.Repo.db = db
     query.Repo.db = db
-    Repo.db = db
 
 
 def close_db():
@@ -29,4 +27,7 @@ def close_db():
     repo.Repo.db = None
     base.Repo.db = None
     query.Repo.db = None
-    Repo.db = None
+
+def load_schema(schema):
+    repo.Repo.db.executescript(schema)
+    repo.Repo.db.commit()

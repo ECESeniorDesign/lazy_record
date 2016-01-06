@@ -65,8 +65,7 @@ class TestGettingRecordsThroughJoin(unittest.TestCase):
 
     def setUp(self):
         lazy_record.connect_db()
-        lazy_record.Repo.db.executescript(test_schema)
-        lazy_record.Repo.db.commit()
+        lazy_record.load_schema(test_schema)
         self.person = Person()
         self.person.save()
         self.book = Book()
@@ -109,8 +108,7 @@ class TestBuildingRecordsThroughJoin(unittest.TestCase):
 
     def setUp(self):
         lazy_record.connect_db()
-        lazy_record.Repo.db.executescript(test_schema)
-        lazy_record.Repo.db.commit()
+        lazy_record.load_schema(test_schema)
         self.person = Person()
         self.person.save()
 
@@ -128,8 +126,7 @@ class TestDestroyingRecordsThroughJoin(unittest.TestCase):
 
     def setUp(self):
         lazy_record.connect_db()
-        lazy_record.Repo.db.executescript(test_schema)
-        lazy_record.Repo.db.commit()
+        lazy_record.load_schema(test_schema)
         self.person = Person()
         self.person.save()
         self.book = Book()
@@ -173,8 +170,7 @@ class TestAddsRecords(unittest.TestCase):
 
     def setUp(self):
         lazy_record.connect_db()
-        lazy_record.Repo.db.executescript(test_schema)
-        lazy_record.Repo.db.commit()
+        lazy_record.load_schema(test_schema)
         self.person = Person()
         self.person.save()
         self.book = Book()
