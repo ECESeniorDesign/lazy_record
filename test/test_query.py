@@ -171,5 +171,14 @@ class TestQuery(unittest.TestCase):
     def test_class_displays_as_though_it_was_in_lazy_record(self, Repo):
         self.assertEqual(repr(Query), "<class 'lazy_record.Query'>")
 
+    def tests_inclusion(self, Repo):
+        repo = Repo.return_value
+        fetchall_return = [{"id": 2, "my_attr": 15, "created_at": 33}]
+        fetchall = mock.Mock(return_value=fetchall_return)
+        select_mock = mock.Mock(fetchall=fetchall)
+        repo.select.return_value = mock.Mock(fetchall=fetchall)
+        self.assertIn("mytestvalue", Query(TunaCasserole).all())
+
+
 if __name__ == '__main__':
     unittest.main()

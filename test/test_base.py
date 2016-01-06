@@ -198,6 +198,42 @@ class TestBase(unittest.TestCase):
         self.assertEqual(repr(m),
                          "MyModel(id=None, name=None, created_at=None)")
 
+    def test_evaluates_equality_based_on_id(self, Query, Repo, dt):
+        m1 = MyModel()
+        m1._id = 1
+        m2 = MyModel()
+        m2._id = 1
+        m3 = MyModel()
+        m3._id = 2
+        self.assertEqual(m1, m2)
+        self.assertNotEqual(m1, m3)
+
+    def test_evaluates_as_inequal_if_either_id_is_None(self, Query, Repo, dt):
+        m1 = MyModel()
+        m1._id = 1
+        m2 = MyModel()
+        m2._id = None
+        m3 = MyModel()
+        m3._id = None
+        self.assertNotEqual(m1, m2)
+        self.assertNotEqual(m2, m1)
+        self.assertNotEqual(m2, m3)
+
+    def test_identical_records_evaluate_as_equal(self, Query, Repo, dt):
+        m1 = MyModel()
+        m1._id = None
+        self.assertEqual(m1, m1)
+
+    def test_casts_to_int_as_id(self, Query, Repo, dt):
+        m = MyModel()
+        m._id = 11
+        self.assertEqual(int(m), 11)
+
+    def test_casts_to_0_if_no_id(self, Query, Repo, dt):
+        m = MyModel()
+        m._id = None
+        self.assertEqual(int(m), 0)
+
 
 @mock.patch("base.Repo")
 class TestBaseDestroy(unittest.TestCase):

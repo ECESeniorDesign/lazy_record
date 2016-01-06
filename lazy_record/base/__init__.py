@@ -172,6 +172,22 @@ class Base(query_methods.QueryMethods, Validations):
         Repo.db.commit()
         self._finish_save()
 
+    def __cmp__(self, other):
+        if self is other:
+            return 0
+        elif self.id == None:
+            return 1
+        elif other.id == None:
+            return -1
+        else:
+            return cmp(self.id, other.id)
+
+    def __int__(self):
+        if self.id:
+            return int(self.id)
+        else:
+            return 0
+
     def __repr__(self):
         return "{}({})".format(
             self.__class__.__name__,
