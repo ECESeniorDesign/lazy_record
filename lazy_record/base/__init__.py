@@ -25,6 +25,14 @@ class Base(query_methods.QueryMethods, Validations):
         for attr in self.__class__.__attributes__:
             setattr(self, "_" + attr, None)
         self.update(**kwargs)
+        for attr, value in kwargs.items():
+            # Check for anything like Post(user=User())
+            if attr in self.__class__.__associations__:
+                # Only works for setting in belongs_to
+                if isinstance(value, Base):
+                    setattr(self,
+                            self.__class__.__foreign_keys__[attr],
+                            value.id)
         self._id = None
         self._created_at = None
         self.__table = Repo.table_name(self.__class__)

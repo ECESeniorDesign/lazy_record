@@ -121,8 +121,8 @@ class TestBelongsTo(unittest.TestCase):
         self.comment.post = None
         self.assertEqual(self.comment.post_id, None)
 
-    def test_does_not_add_entry_to_relationships(self, query):
-        self.assertNotIn("post", Comment.__associations__)
+    def test_adds_entry_to_relationships(self, query):
+        self.assertIn("post", Comment.__associations__)
 
 
 @mock.patch("lazy_record.associations.query")

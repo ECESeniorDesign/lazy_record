@@ -51,6 +51,9 @@ class belongs_to(object):
         # Set the foreign key in the model in case it needs to be looked up
         klass.__foreign_keys__ = dict(klass.__foreign_keys__)
         klass.__foreign_keys__[self.parent_name] = self.foreign_key
+        # Add the relationship to the association list
+        klass.__associations__ = dict(klass.__associations__)
+        klass.__associations__[self.parent_name] = None
 
         # Getter method for the parent record (e.g. comment.post)
         # Is added to the class as a property

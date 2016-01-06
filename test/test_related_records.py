@@ -192,5 +192,11 @@ class TestAddsRecords(unittest.TestCase):
         assert (self.book.id in [b.id for b in self.person.books])
         assert (self.person.id in [p.id for p in self.book.persons])
 
+    def test_sets_record_in_init(self):
+        lending = Lending(person=self.person, book=self.book)
+        lending.save()
+        self.assertEqual(lending.person_id, self.person.id)
+        self.assertEqual(lending.book_id, self.book.id)
+
 if __name__ == '__main__':
     unittest.main()
