@@ -141,17 +141,14 @@ class TestQuery(unittest.TestCase):
         r = Query(TunaCasserole).where(my_attr=5).order_by(id="desc").last()
         self.assertEqual(None, r)
 
-    @unittest.skip("WIP")
     def test_builds_simple_related_records(self, Repo):
         record = Query(TunaCasserole).where(my_attr=11).build()
         self.assertEqual(record.my_attr, 11)
 
-    @unittest.skip("WIP")
     def test_builds_simple_related_records_with_args(self, Repo):
         record = Query(TunaCasserole).where(my_attr=11).build(my_attr=12)
         self.assertEqual(record.my_attr, 12)
 
-    @unittest.skip("WIP")
     def test_unrelates_records(self, Repo):
         Repo.table_name.return_value = "tuna_casseroles"
         t = TunaCasserole()
