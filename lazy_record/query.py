@@ -289,6 +289,7 @@ class Query(object):
                 ))
 
     def __getattr__(self, attr):
+        # Check to see if there is a scope with this name on the queried model
         if attr in self.model.__scopes__:
             # Grab the scope lambda
             scope = self.model.get_scope(attr)
@@ -296,8 +297,11 @@ class Query(object):
             bound_scope = types.MethodType(scope, self)
             # Define the method on self
             setattr(self, attr, bound_scope)
+            # Try again. This time, it will find the attribute, so __getattr__
+            # will not get called again
             return getattr(self, attr)
         else:
+            # Not a scope: resume standard attribute lookup
             return self.__getattribute__(attr)
 
     class __metaclass__(type):

@@ -15,7 +15,7 @@ from lazy_record.associations import *
 ```
 
 The first line makes lazy_record avaliable within your scope, and the second line makes the association decorators
-`has_many` and `belongs_to` avaliable. You could neglect to add the second line, and instead use `lazy_record.has_many`.
+`has_many` and `belongs_to` avaliable. You could neglect to add the second line, and instead use `lazy_record.associations.has_many`.
 
 # Models
 

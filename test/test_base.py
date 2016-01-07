@@ -21,6 +21,8 @@ class MyModel(Base):
     def my_childs():
         pass
 
+class MyOtherModel(Base):
+    pass
 
 @mock.patch("base.datetime")
 @mock.patch("base.Repo")
@@ -218,6 +220,13 @@ class TestBase(unittest.TestCase):
         self.assertNotEqual(m1, m2)
         self.assertNotEqual(m2, m1)
         self.assertNotEqual(m2, m3)
+
+    def test_evaluates_as_inequal_if_models_are_different(self, Q, R, dt):
+        m1 = MyModel()
+        m1._id = 1
+        m2 = MyOtherModel()
+        m2._id = 1
+        self.assertNotEqual(m1, m2)
 
     def test_identical_records_evaluate_as_equal(self, Query, Repo, dt):
         m1 = MyModel()
