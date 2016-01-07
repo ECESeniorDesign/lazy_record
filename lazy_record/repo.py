@@ -1,5 +1,6 @@
 import re
 import sqlite3
+from itertools import chain
 
 
 class Invalid(Exception):
@@ -23,24 +24,45 @@ class Repo(object):
         self.inner_joins = []
         self.order_clause = ""
 
-    def where(self, **restrictions):
+    def where(self, custom_restrictions=[], **restrictions):
         """
-        Analog to SQL "WHERE". Currently only supports ==. Does not perform
-        a query until `select` is called. Returns a repo object.
+        Analog to SQL "WHERE". Does not perform a query until `select` is
+        called. Returns a repo object. Options selected through keyword
+        arguments are assumed to use ==.
 
         ex)
 
         >>> Repo("foos").where(id=11).select("*")
-        SELECT foos.* FROM foos WHERE id == 11
+        SELECT foos.* FROM foos WHERE foos.id == 11
+        >>> Repo("foos").where([("id > ?", 12)]).select("*")
+        SELECT foos.* FROM foos WHERE foos.id > 12
         """
+
+        def scope_name(query, table):
+            # The first entry in the query is the column
+            # If the column already has a ".", that means that the table has
+            # already been chosen
+            for splitter in (" and ", " or "):
+                split_query = re.split(splitter, query, re.IGNORECASE)
+                query = splitter.join("{}.{}".format(table, entry)
+                                      if "." not in entry else entry
+                                      for entry in split_query)
+            return query
+
         ordered_items = self._build_where(restrictions)
+        # Construct the query text
+        standard_query_items = ["{}.{} == ?".format(pair[0], pair[1])
+                                for pair in ordered_items]
+        custom_query_items = [scope_name(restriction[0], self.table_name)
+                              for restriction in custom_restrictions]
+        query_items = standard_query_items + custom_query_items
         self.where_clause = "where {query} ".format(
-            query=" and ".join("{table}.{attr} == ?".format(
-                table=pair[0],
-                attr=pair[1]
-            ) for pair in ordered_items)
-        )
-        self.where_values = [pair[2] for pair in ordered_items]
+            query=" and ".join(query_items))
+        # Construct the query values
+        standard_query_values = [pair[2] for pair in ordered_items]
+        custom_query_values = list(chain(
+            *[restriction[1:] for restriction in custom_restrictions]))
+        self.where_values = standard_query_values + custom_query_values
         return self
 
     def _build_where(self, where_query):

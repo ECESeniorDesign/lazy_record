@@ -41,6 +41,50 @@ class TestRepo(unittest.TestCase):
             "from tuna_casseroles "
             "where tuna_casseroles.my_attr == ?", [5])
 
+    def test_where_allows_arbitrary_restriction(self, db):
+        Repo("tuna_casseroles").where([("my_attr > ?", 15)]).select("*")
+        db.execute.assert_called_once_with(
+            "select tuna_casseroles.* from tuna_casseroles "
+            "where tuna_casseroles.my_attr > ?", [15])
+
+    def test_arbitrary_where_does_not_double_scope_column(self, db):
+        Repo("tuna_casseroles").where([("tuna_casseroles.my_attr > ?",
+                                        15)]).select("*")
+        db.execute.assert_called_once_with(
+            "select tuna_casseroles.* from tuna_casseroles "
+            "where tuna_casseroles.my_attr > ?", [15])
+
+    def test_arbitrary_where_combines_with_regular_where(self, db):
+        Repo("tuna_casseroles").where([("my_attr > ?",
+                                        15)], name="foo").select("*")
+        db.execute.assert_called_once_with(
+            "select tuna_casseroles.* from tuna_casseroles "
+            "where tuna_casseroles.name == ? "
+            "and tuna_casseroles.my_attr > ?", ["foo", 15])
+
+    def test_arbitrary_where_can_accept_no_args(self, db):
+        Repo("tuna_casseroles").where([("my_attr == 11",)]).select("*")
+        db.execute.assert_called_once_with(
+            "select tuna_casseroles.* from tuna_casseroles "
+            "where tuna_casseroles.my_attr == 11", [])
+
+    def test_arbitrary_where_can_accept_many_args(self, db):
+        Repo("tuna_casseroles").where([("my_attr == ? or my_attr == ?", 5, 11)],
+            ).select("*")
+        db.execute.assert_called_once_with(
+            "select tuna_casseroles.* from tuna_casseroles "
+            "where tuna_casseroles.my_attr == ? "
+            "or tuna_casseroles.my_attr == ?", [5, 11])
+
+    def test_accepts_multiple_arbitrary_wheres(self, db):
+        Repo("tuna_casseroles").where([("my_attr == ?", 5),
+                                       ("my_attr == ?", 11)],
+                                      ).select("*")
+        db.execute.assert_called_once_with(
+            "select tuna_casseroles.* from tuna_casseroles "
+            "where tuna_casseroles.my_attr == ? "
+            "and tuna_casseroles.my_attr == ?", [5, 11])
+
     def test_queries_through_tables(self, db):
         Repo("tuna_casseroles").where(
             my_relations=dict(my_attr=5)).select("id", "created_at")
@@ -133,6 +177,7 @@ class TestRepo(unittest.TestCase):
         db.execute.assert_called_once_with(
             "select tuna_casseroles.id, tuna_casseroles.created_at from "
             "tuna_casseroles order by id desc", [])
+
 
 if __name__ == '__main__':
     unittest.main()
