@@ -14,6 +14,7 @@ class Base(query_methods.QueryMethods, Validations):
     __foreign_keys__ = {}
     __dependents__ = []
     __associations__ = {}
+    __scopes__ = {}
 
     def __init__(self, **kwargs):
         """
@@ -197,3 +198,22 @@ class Base(query_methods.QueryMethods, Validations):
                     "created_at"
                 ]
                 if hasattr(self, attr)))
+
+
+    class __metaclass__(type):
+        def get_scope(cls, scope_name):
+            """
+            Retrieve a scope method defined in __scopes__ and set the name
+            appropriately.
+            """
+            scope = cls.__scopes__[scope_name]
+            scope.__name__ = "<scope>{}".format(scope_name)
+            return scope
+
+        def __getattr__(cls, attr):
+            if attr in cls.__scopes__:
+                setattr(cls, attr, classmethod(cls.get_scope(attr)))
+                return getattr(cls, attr)
+            else:
+                raise AttributeError("'{}' has no attribute '{}'".format(
+                    cls.__name__, attr))

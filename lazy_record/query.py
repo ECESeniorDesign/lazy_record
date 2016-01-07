@@ -1,6 +1,7 @@
 from repo import Repo
 import sys
 import os
+import types
 sys.path.insert(0, os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 class Query(object):
@@ -286,6 +287,18 @@ class Query(object):
                     expected=self.model.__name__,
                     actual=record.__class__.__name__
                 ))
+
+    def __getattr__(self, attr):
+        if attr in self.model.__scopes__:
+            # Grab the scope lambda
+            scope = self.model.get_scope(attr)
+            # Bind the lambda to self so it acts like a method
+            bound_scope = types.MethodType(scope, self)
+            # Define the method on self
+            setattr(self, attr, bound_scope)
+            return getattr(self, attr)
+        else:
+            return self.__getattribute__(attr)
 
     class __metaclass__(type):
         def __repr__(self):
