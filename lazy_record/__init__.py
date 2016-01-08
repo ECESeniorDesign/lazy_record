@@ -33,5 +33,5 @@ def load_schema(schema):
     Load a schema file with path +schema+ into the database. Assumes that
     there exists an active database connection.
     """
-    repo.Repo.db.executescript(schema)
-    repo.Repo.db.commit()
+    with repo.Repo.db:
+        repo.Repo.db.executescript(schema)

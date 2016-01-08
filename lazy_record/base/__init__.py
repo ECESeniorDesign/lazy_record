@@ -120,8 +120,8 @@ class Base(query_methods.QueryMethods, Validations):
         This can orphan records, so use with care.
         """
         if self.id:
-            Repo(self.__table).where(id=self.id).delete()
-            Repo.db.commit()
+            with Repo.db:
+                Repo(self.__table).where(id=self.id).delete()
 
     def _do_destroy(self):
         Repo(self.__table).where(id=self.id).delete()
@@ -135,8 +135,8 @@ class Base(query_methods.QueryMethods, Validations):
         all dependents and children.
         """
         if self.id:
-            self._do_destroy()
-            Repo.db.commit()
+            with Repo.db:
+                self._do_destroy()
 
     def _do_save(self):
         self.validate()
@@ -161,16 +161,16 @@ class Base(query_methods.QueryMethods, Validations):
         otherwise. Also saves related records (children and dependents) as
         needed.
         """
-        self._do_save()
-        our_name = Repo.table_name(self.__class__)[:-1]
-        for record in self._related_records:
-            if not self._id:
-                related_key = record.__class__.__foreign_keys__[our_name]
-                setattr(record, related_key, self.__id)
-            record._do_save()
-        for record in self._delete_related_records:
-            record._do_destroy()
-        Repo.db.commit()
+        with Repo.db:
+            self._do_save()
+            our_name = Repo.table_name(self.__class__)[:-1]
+            for record in self._related_records:
+                if not self._id:
+                    related_key = record.__class__.__foreign_keys__[our_name]
+                    setattr(record, related_key, self.__id)
+                record._do_save()
+            for record in self._delete_related_records:
+                record._do_destroy()
         self._finish_save()
 
     def __cmp__(self, other):
