@@ -26,7 +26,8 @@ reflect their database schema (it is assumed empty if not defined). An example s
 CREATE TABLE entries (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT,
-    created_at DATE NOT NULL
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL
 );
 ```
 
@@ -45,7 +46,7 @@ Lazy Record exposes convience methods for querying records. Using the example ab
 >>> entry = Entry(name="foo")
 >>> entry.save()
 >>> Entry.all()
-<lazy_record.Query [Entry(id=1, name="foo", created_at=datetime.date(2016, 01, 01)]>
+<lazy_record.Query [Entry(id=1, name="foo", created_at=2016-01-08 01:53:45, updated_at=2016-01-08 01:53:45)]>
 >>> Entry.where(name="bar")
 <lazy_record.Query []>
 ```
@@ -98,7 +99,7 @@ This allows the querying and creation of related records.
 >>> comment = post.comments.build()
 >>> comment.save()
 >>> post.comments
-<lazy_record.Query [Comment(id=1, created_at=datetime.date(2016, 01, 01), post_id=1)]>
+<lazy_record.Query [Comment(id=1, created_at=2016-01-08 01:53:45, updated_at=2016-01-08 01:53:45, post_id=1)]>
 ```
 
 Currently, one-to-many and many-to-many relationships are supported, and the foreign keys can be changed for one-to-many

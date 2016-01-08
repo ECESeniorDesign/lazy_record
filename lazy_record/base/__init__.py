@@ -5,6 +5,7 @@ from query import Query
 from repo import Repo
 import datetime
 from lazy_record.errors import *
+import lazy_record.typecasts as typecasts
 import query_methods
 from validations import Validations
 
@@ -21,9 +22,10 @@ class Base(query_methods.QueryMethods, Validations):
         Instantiate a new object, mass-assigning the values in +kwargs+.
         Cannot mass-assign id or created_at.
         """
-        if set(["id", "created_at"]) & set(kwargs):
-            raise AttributeError("Cannot set 'id' or 'created_at'")
-        for attr in self.__class__.__attributes__:
+        if set(["id", "created_at", "updated_at"]) & set(kwargs):
+            raise AttributeError("Cannot set 'id', 'created_at', "
+                                 "or 'updated_at'")
+        for attr in self.__class__.__all_attributes__:
             setattr(self, "_" + attr, None)
         self.update(**kwargs)
         for attr, value in kwargs.items():
@@ -35,7 +37,6 @@ class Base(query_methods.QueryMethods, Validations):
                             self.__class__.__foreign_keys__[attr],
                             value.id)
         self._id = None
-        self._created_at = None
         self.__table = Repo.table_name(self.__class__)
         self._related_records = []
         self._delete_related_records = []
@@ -55,8 +56,8 @@ class Base(query_methods.QueryMethods, Validations):
         11
         """
         def identity(val): return val
-        attr_dict = self.__class__.__attributes__
-        if attr in attr_dict or attr in ("id", "created_at"):
+        attr_dict = self.__class__.__all_attributes__
+        if attr in attr_dict or attr == "id":
             value = self.__getattribute__("_" + attr)
             if value is not None:
                 return attr_dict.get(attr, identity)(value)
@@ -81,7 +82,7 @@ class Base(query_methods.QueryMethods, Validations):
         >>> record._my_val # Don't actually do this in production code.
         11
         """
-        if name in ("id", "created_at"):
+        if name in ("id", "created_at", "updated_at"):
             raise AttributeError("Cannot set '{}'".format(name))
         elif name in self.__class__.__attributes__:
             if value is not None:
@@ -140,13 +141,14 @@ class Base(query_methods.QueryMethods, Validations):
 
     def _do_save(self):
         self.validate()
+        self._updated_at = datetime.datetime.today()
         if self.id:
-            attrs = list(self.__class__.__attributes__) + ["created_at"]
+            attrs = list(self.__class__.__all_attributes__)
             data = {attr: getattr(self, attr) for attr in attrs}
             Repo(self.__table).where(id=self.id).update(**data)
         else:
-            attrs = list(self.__class__.__attributes__) + ["created_at"]
-            self._created_at = datetime.date.today()
+            attrs = list(self.__class__.__all_attributes__)
+            self._created_at = datetime.datetime.today()
             data = {attr: getattr(self, attr) for attr in attrs}
             self.__id = int(Repo(self.__table).insert(**data))
 
@@ -198,14 +200,20 @@ class Base(query_methods.QueryMethods, Validations):
             return 0
 
     def __repr__(self):
-        return "{}({})".format(
+
+        def gettimestamp(obj, attr):
+            if getattr(obj, attr):
+                return str(getattr(obj, attr).replace(microsecond=0))
+
+        return "{}({}, {})".format(
             self.__class__.__name__,
             ", ".join(
                 "{}={!r}".format(attr, getattr(self, attr))
-                for attr in ["id"] + list(self.__class__.__attributes__) + [
-                    "created_at"
-                ]
-                if hasattr(self, attr)))
+                for attr in ["id"] + list(self.__class__.__attributes__)
+                if hasattr(self, attr)),
+            ", ".join(
+                "{}={}".format(attr, gettimestamp(self, attr))
+                for attr in ["created_at", "updated_at"]))
 
 
     class __metaclass__(type):
@@ -221,6 +229,15 @@ class Base(query_methods.QueryMethods, Validations):
             # function to "<scope>scope_name"
             scope.__name__ = "<scope>{}".format(scope_name)
             return scope
+
+        @property
+        def __all_attributes__(cls):
+            attrs = dict(cls.__attributes__)
+            attrs.update({
+                "created_at": typecasts.datetime,
+                "updated_at": typecasts.datetime,
+            })
+            return attrs
 
         def __getattr__(cls, attr):
             # Is the attr a scope?

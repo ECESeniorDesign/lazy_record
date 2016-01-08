@@ -2,3 +2,6 @@
 def date(datetime):
     # may get more complexity later
     return datetime
+
+def datetime(datetime):
+    return datetime

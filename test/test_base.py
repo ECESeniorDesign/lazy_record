@@ -36,24 +36,26 @@ class TestBase(unittest.TestCase):
         Repo.table_name.assert_called_with(MyModel)
         Repo.assert_called_with("my_model")
         repo = Repo.return_value
-        today = datetime.date.today.return_value
+        today = datetime.datetime.today.return_value
         repo.insert.assert_called_with(name="me",
-                                       created_at=today)
+                                       created_at=today,
+                                       updated_at=today)
 
     def test_updates_records(self, Query, Repo, datetime):
         Repo.table_name.return_value = "my_model"
         my_record = MyModel(name="foo")
         my_record._id = 3
-        my_record._created_at = datetime.date.today.return_value
+        my_record._created_at = datetime.datetime.today.return_value
         my_record.save()
         Repo.table_name.assert_called_with(MyModel)
         Repo.assert_called_with("my_model")
         repo = Repo.return_value
         repo.where.assert_called_with(id=3)
         where = repo.where.return_value
-        today = datetime.date.today.return_value
+        today = datetime.datetime.today.return_value
         where.update.assert_called_with(name="foo",
-                                        created_at=today)
+                                        created_at=today,
+                                        updated_at=today)
 
     def test_does_not_create_invalid_records(self, Query, Repo, datetime):
         Repo.table_name.return_value = "my_model"
@@ -66,7 +68,7 @@ class TestBase(unittest.TestCase):
         Repo.table_name.return_value = "my_model"
         my_record = MyModel(name="invalid")
         my_record._id = 3
-        my_record._created_at = datetime.date.today.return_value
+        my_record._created_at = datetime.datetime.today.return_value
         with self.assertRaises(base.RecordInvalid):
             my_record.save()
         self.assertEqual(Repo.return_value.update.call_count, 0)
@@ -75,7 +77,7 @@ class TestBase(unittest.TestCase):
         Repo.table_name.return_value = "my_model"
         my_record = MyModel(name="foo")
         my_record._id = 3
-        my_record._created_at = datetime.date.today.return_value
+        my_record._created_at = datetime.datetime.today.return_value
         my_record.delete()
         Repo.table_name.assert_called_with(MyModel)
         Repo.assert_called_with("my_model")
@@ -132,10 +134,10 @@ class TestBase(unittest.TestCase):
 
     def test_creates_from_dictionary(self, Query, Repo, datetime):
         m = MyModel.from_dict(id=1, name="foo",
-                              created_at=datetime.date.today.return_value)
+                              created_at=datetime.datetime.today.return_value)
         self.assertEqual(m.id, 1)
         self.assertEqual(m.name, "foo")
-        self.assertEqual(m.created_at, datetime.date.today.return_value)
+        self.assertEqual(m.created_at, datetime.datetime.today.return_value)
 
     def test_forbids_setting_of_id(self, Query, Repo, datetime):
         m = MyModel()
@@ -145,7 +147,7 @@ class TestBase(unittest.TestCase):
     def test_forbids_setting_of_created_at(self, Query, Repo, datetime):
         m = MyModel()
         with self.assertRaises(AttributeError):
-            m.created_at = datetime.date.today.return_value
+            m.created_at = datetime.datetime.today.return_value
 
     def test_allows_setting_of_attributes(self, Query, Repo, datetime):
         m = MyModel()
@@ -198,7 +200,8 @@ class TestBase(unittest.TestCase):
     def test_repr_displays_meaningful_represenation(self, Query, Repo, dt):
         m = MyModel()
         self.assertEqual(repr(m),
-                         "MyModel(id=None, name=None, created_at=None)")
+                         "MyModel(id=None, name=None, created_at=None, "
+                         "updated_at=None)")
 
     def test_evaluates_equality_based_on_id(self, Query, Repo, dt):
         m1 = MyModel()

@@ -162,7 +162,7 @@ class TestQuery(unittest.TestCase):
 
     def test_displays_as_query_with_records(self, Repo):
         Repo.return_value.select.return_value.fetchall.return_value = [
-            (1, 7, datetime.date(2016, 1, 1))]
+            (1, 7, datetime.datetime(2016, 1, 1))]
         # Recall that TunaCasserole overrides #from_dict to return
         # 'mytestvalue' so that is what it will repr as
         self.assertEqual(repr(Query(TunaCasserole)),

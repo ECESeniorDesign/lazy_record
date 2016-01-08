@@ -38,25 +38,29 @@ test_schema = """
 drop table if exists persons;
 create table persons (
   id integer primary key autoincrement,
-  created_at date not null
+  created_at timestamp not null,
+  updated_at timestamp not null
 );
 drop table if exists lendings;
 create table lendings (
   id integer primary key autoincrement,
   person_id integer not null,
   book_id integer not null,
-  created_at date not null
+  created_at timestamp not null,
+  updated_at timestamp not null
 );
 drop table if exists books;
 create table books (
   id integer primary key autoincrement,
-  created_at date not null
+  created_at timestamp not null,
+  updated_at timestamp not null
 );
 drop table if exists lending_tables;
 create table lending_tables (
   id integer primary key autoincrement,
   lending_id integer,
-  created_at date not null
+  created_at timestamp not null,
+  updated_at timestamp not null
 );
 """
 
