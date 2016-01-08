@@ -31,12 +31,15 @@ class QueryMethods(object):
         return Query(cls).all()
 
     @classmethod
-    def where(cls, **kwargs):
+    def where(cls, *args, **kwargs):
         """
         Returns a Query object of all records in this classes table, subject
-        to the restrictions in +kwargs+.
+        to the restrictions in +kwargs+. More advanced queries can be passed
+        in the form:
+
+        >>> MyClass.where("name LIKE ?", "foo")
         """
-        return Query(cls).where(**kwargs)
+        return Query(cls).where(*args, **kwargs)
 
     @classmethod
     def joins(cls, table):

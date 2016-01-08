@@ -116,6 +116,12 @@ class TestBase(unittest.TestCase):
         query = Query.return_value
         query.where.assert_called_with(name="foo")
 
+    def test_allows_custom_where(self, Query, Repo, dt):
+        MyModel.where("name LIKE ?", "foo")
+        Query.assert_called_with(MyModel)
+        query = Query.return_value
+        query.where.assert_called_with("name LIKE ?", "foo")
+
     def test_allows_fetching_of_all_records(self, Query, Repo, datetime):
         MyModel.all()
         Query.assert_called_with(MyModel)

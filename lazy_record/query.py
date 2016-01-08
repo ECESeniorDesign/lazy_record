@@ -21,10 +21,10 @@ class Query(object):
         self.model = model
         self.record = record
         self.where_query = {}
+        self.custom_where = []
         self.join_args = []
         self._order_with = {}
-        self.attributes = ["id", "created_at"] + \
-            list(self.model.__attributes__)
+        self.attributes = ["id"] + list(self.model.__all_attributes__)
         self.table = Repo.table_name(self.model)
 
     def all(self):
@@ -74,7 +74,7 @@ class Query(object):
         self._order_with = dict([kwargs.popitem()])
         return self
 
-    def where(self, **restrictions):
+    def where(self, *custom_restrictions, **restrictions):
         """
         Restricts the records to the query subject to the passed
         +restrictions+. Analog to "WHERE" in SQL. Can pass multiple
@@ -82,6 +82,8 @@ class Query(object):
         """
         for attr, value in restrictions.items():
             self.where_query[attr] = value
+        if custom_restrictions:
+            self.custom_where.append(tuple(custom_restrictions))
         return self
 
     def joins(self, table):
@@ -127,8 +129,8 @@ class Query(object):
 
     def _do_query(self):
         repo = Repo(self.table)
-        if self.where_query:
-            repo = repo.where(**self.where_query)
+        if self.where_query or self.custom_where:
+            repo = repo.where(self.custom_where, **self.where_query)
         if self.join_args:
             repo = repo.inner_join(*self.join_args)
         if self._order_with:

@@ -49,6 +49,8 @@ Lazy Record exposes convience methods for querying records. Using the example ab
 <lazy_record.Query [Entry(id=1, name="foo", created_at=2016-01-08 01:53:45, updated_at=2016-01-08 01:53:45)]>
 >>> Entry.where(name="bar")
 <lazy_record.Query []>
+>>> Entry.where("name LIKE ?", "bar")
+<lazy_record.Query []>
 ```
 
 Methods that return queries (`where`, `all`, `joins`) can be chained, so something like this is valid:

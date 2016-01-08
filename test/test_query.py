@@ -11,7 +11,7 @@ import query
 
 
 class TunaCasserole(object):
-    __attributes__ = {"my_attr": int}
+    __all_attributes__ = {"my_attr": int, "created_at": int, "updated_at":int}
     __foreign_keys__ = {"tuna_casserole": "tuna_casserole_id"}
     __associations__ = {"my_relations": None}
 
@@ -41,7 +41,8 @@ class TestQuery(unittest.TestCase):
         Repo.table_name.return_value = "tuna_casseroles"
         list(Query(TunaCasserole).all())
         repo = Repo.return_value
-        repo.select.assert_called_with("id", "created_at", "my_attr")
+        repo.select.assert_called_with("id", "created_at",
+                                       "updated_at", "my_attr")
 
     def test_constructs_object_with_information(self, Repo):
         repo = Repo.return_value
@@ -54,30 +55,47 @@ class TestQuery(unittest.TestCase):
     def test_where_restricts_query(self, Repo):
         list(Query(TunaCasserole).where(my_attr=5))
         repo = Repo.return_value
-        repo.where.assert_called_with(my_attr=5)
+        repo.where.assert_called_with([], my_attr=5)
         repo.where.return_value.select.assert_called_with(
-            "id", "created_at", "my_attr")
+            "id", "created_at", "updated_at", "my_attr")
 
     def test_where_allows_all_after(self, Repo):
         list(Query(TunaCasserole).where(my_attr=5).all())
         repo = Repo.return_value
-        repo.where.assert_called_with(my_attr=5)
+        repo.where.assert_called_with([], my_attr=5)
         repo.where.return_value.select.assert_called_with(
-            "id", "created_at", "my_attr")
+            "id", "created_at", "updated_at", "my_attr")
 
     def test_where_allows_chaining(self, Repo):
         list(Query(TunaCasserole).where(my_attr=5).where(id=7))
         repo = Repo.return_value
-        repo.where.assert_called_with(my_attr=5, id=7)
+        repo.where.assert_called_with([], my_attr=5, id=7)
         repo.where.return_value.select.assert_called_with(
-            "id", "created_at", "my_attr")
+            "id", "created_at", "updated_at", "my_attr")
+
+    def test_where_allows_arbitrary_queries(self, Repo):
+        list(Query(TunaCasserole).where("my_attr == ?", 5))
+        repo = Repo.return_value
+        repo.where.assert_called_with([("my_attr == ?", 5)])
+        repo.where.return_value.select.assert_called_with(
+            "id", "created_at", "updated_at", "my_attr")
+
+    def test_where_with_arbitrary_queries_allows_chaining(self, Repo):
+        list(Query(TunaCasserole).where("my_attr > ?", 5).where(
+            "my_attr < ?", 10))
+        repo = Repo.return_value
+        repo.where.assert_called_with([("my_attr > ?", 5),
+                                       ("my_attr < ?", 10)])
+        repo.where.return_value.select.assert_called_with(
+            "id", "created_at", "updated_at", "my_attr")
 
     def test_allows_ordering(self, Repo):
         list(Query(TunaCasserole).order_by(id="desc").all())
         repo = Repo.return_value
         repo.order_by.assert_called_with(id="desc")
         order = repo.order_by.return_value
-        order.select.assert_called_with("id", "created_at", "my_attr")
+        order.select.assert_called_with("id", "created_at",
+                                        "updated_at", "my_attr")
 
     def test_raises_on_multiple_orders(self, Repo):
         with self.assertRaises(query.QueryInvalid):
@@ -88,10 +106,10 @@ class TestQuery(unittest.TestCase):
         record = Query(TunaCasserole).where(my_attr=5).where(id=7).first()
         self.assertEqual("mytestvalue", record)
         repo = Repo.return_value
-        repo.where.assert_called_with(my_attr=5, id=7)
+        repo.where.assert_called_with([], my_attr=5, id=7)
         where = repo.where.return_value
         where.select.assert_called_with(
-            "id", "created_at", "my_attr")
+            "id", "created_at", "updated_at", "my_attr")
         where.select.return_value.fetchone.assert_called_once_with()
 
     def test_first_returns_None_if_no_first_record(self, Repo):
@@ -105,12 +123,12 @@ class TestQuery(unittest.TestCase):
         record = Query(TunaCasserole).where(my_attr=5).where(id=7).last()
         self.assertEqual("mytestvalue", record)
         repo = Repo.return_value
-        repo.where.assert_called_with(my_attr=5, id=7)
+        repo.where.assert_called_with([], my_attr=5, id=7)
         where = repo.where.return_value
         where.order_by.assert_called_with(id="desc")
         order = where.order_by.return_value
         order.select.assert_called_with(
-            "id", "created_at", "my_attr")
+            "id", "created_at", "updated_at", "my_attr")
         order.select.return_value.fetchone.assert_called_once_with()
 
     def test_last_returns_None_if_no_last_record(self, Repo):
@@ -125,12 +143,12 @@ class TestQuery(unittest.TestCase):
         r = Query(TunaCasserole).where(my_attr=5).order_by(id="desc").last()
         self.assertEqual("mytestvalue", r)
         repo = Repo.return_value
-        repo.where.assert_called_with(my_attr=5)
+        repo.where.assert_called_with([], my_attr=5)
         where = repo.where.return_value
         where.order_by.assert_called_with(id="asc")
         order = where.order_by.return_value
         order.select.assert_called_with(
-            "id", "created_at", "my_attr")
+            "id", "created_at", "updated_at", "my_attr")
         order.select.return_value.fetchone.assert_called_once_with()
 
     def test_gets_last_record_with_existing_sort_with_no_record(self, Repo):
