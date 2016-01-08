@@ -64,6 +64,7 @@ Entry.where(name="foo").where(id=7)
 Validations can be added by defining a `__validates__` class variable to the model. This variable is a dictionary
 whose keys are column names, and whose values are functions that return `True` when the validation passes, and `False`
 if the validation fails.
+Some common validations can be found in `lazy_record.validations`.
 
 Example (validate name is all lowercase):
 
@@ -73,7 +74,7 @@ class Entry(lazy_record.Base):
         "name": str
     }
     __validates__ = {
-        "name": lambda name: name == name.lower()
+        "name": lambda record: record.name == record.name.lower()
     }
 ```
 

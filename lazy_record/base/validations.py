@@ -1,5 +1,5 @@
 from lazy_record.errors import *
-
+import lazy_record.validations as validators
 
 class Validations(object):
     __validates__ = {}
@@ -12,7 +12,11 @@ class Validations(object):
         reason = {}
         valid = True
         for attr, validation in self.__class__.__validates__.items():
-            if not validation(getattr(self, attr)):
+            if validation.__module__ == 'lazy_record.validations':
+                if validation.__name__ != "validator":
+                    # Close them around the attr name
+                    self.__class__.__validates__[attr] = validation(attr)
+            if not validation(self):
                 reason[attr] = getattr(self, attr)
                 valid = False
         if not valid:

@@ -15,7 +15,7 @@ class MyModel(Base):
         "name": str,
     }
     __validates__ = {
-        "name": lambda name: name != "invalid"
+        "name": lambda record: record.name != "invalid"
     }
 
     def my_childs():
