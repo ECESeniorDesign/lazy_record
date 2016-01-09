@@ -252,6 +252,14 @@ class TestBase(unittest.TestCase):
         m._id = None
         self.assertEqual(int(m), 0)
 
+    def test_valid_returns_true_when_valid(self, Query, Repo, datetime):
+        m = MyModel(name="valid")
+        self.assertTrue(m.is_valid())
+
+    def test_valid_returns_false_when_invalid(self, Query, Repo, datetime):
+        m = MyModel(name="invalid")
+        self.assertFalse(m.is_valid())
+
 
 @mock.patch("base.Repo")
 class TestBaseDestroy(unittest.TestCase):

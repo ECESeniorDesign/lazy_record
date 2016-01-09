@@ -4,12 +4,13 @@ import lazy_record.validations as validators
 class Validations(object):
     __validates__ = {}
 
-    def validate(self):
+    def is_valid(self, attrs = None):
         """
         Validate an object against the __validates__ class variable.
-        Returns None on success, and raises RecordInvalid if validations fail.
+        Returns True if valid, and False if any validations fail. If passed
+        (as a dict), +attrs+ will be populated with the invalid attributes.
         """
-        reason = {}
+        reason = attrs or {}
         valid = True
         for attr, validation in self.__class__.__validates__.items():
             if validation.__module__ == 'lazy_record.validations':
@@ -19,5 +20,13 @@ class Validations(object):
             if not validation(self):
                 reason[attr] = getattr(self, attr)
                 valid = False
-        if not valid:
+        return valid
+
+    def validate(self):
+        """
+        Validate an object against the __validates__ class variable.
+        Returns None on success, and raises RecordInvalid if validations fail.
+        """
+        reason = {}
+        if not self.is_valid(attrs=reason):
             raise RecordInvalid(reason)
