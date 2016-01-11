@@ -13,10 +13,8 @@ class Validations(object):
         reason = attrs or {}
         valid = True
         for attr, validation in self.__class__.__validates__.items():
-            if validation.__module__ == 'lazy_record.validations':
-                if validation.__name__ != "validator":
-                    # Close them around the attr name
-                    self.__class__.__validates__[attr] = validation(attr)
+            if validation.__class__ == validators.validation:
+                validation.attr = attr
             if not validation(self):
                 reason[attr] = getattr(self, attr)
                 valid = False

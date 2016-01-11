@@ -2,31 +2,35 @@
 Module of common validation functions used to validate records.
 """
 
-__all__ = ["present", "unique", "absent", "length"]
+__all__ = ["present", "unique", "absent", "length", "validation"]
 
-def present(name):
-    def validator(record):
-        if getattr(record, name) is 0:
-            return True
-        return bool(getattr(record, name))
-    return validator
+class validation(object):
 
-def absent(name):
-    def validator(record):
-        return not present(name)(record)
-    return validator
+    def __init__(self, fun):
+        self.fun = fun
 
-def unique(name):
-    def validator(record):
-        model = record.__class__
-        others = model.where("id != ?", record.id
-                     ).where("{} == ?".format(name), getattr(record, name))
-        return len(list(others)) == 0
-    return validator
+    def __call__(self, record, name=None):
+        return self.fun(record, name or self.name)
+
+@validation
+def present(record, name):
+    if getattr(record, name) is 0:
+        return True
+    return bool(getattr(record, name))
+
+@validation
+def absent(record, name):
+    return not present(record, name)
+
+@validation
+def unique(record, name):
+    model = record.__class__
+    others = model.where("id != ?", record.id
+                 ).where("{} == ?".format(name), getattr(record, name))
+    return len(list(others)) == 0
 
 def length(within):
-    def length_validator(name):
-        def validator(record):
-            return len(getattr(record, name)) in within
-        return validator
+    @validation
+    def length_validator(record, name):
+        return len(getattr(record, name)) in within
     return length_validator
