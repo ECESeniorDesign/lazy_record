@@ -158,7 +158,7 @@ class Query(object):
         """
         build_args = dict(self.where_query)
         build_args.update(kwargs)
-        record = self.model(**build_args)
+        record = self.model(**record_args(build_args))
         if self.join_args:
             # EXAMPLE:
             # Say we have a many-to-many relation like so:
@@ -319,6 +319,11 @@ def foreign_key(local, foreign):
 def build_relation(relation, build_args):
     related_class = associations.model_from_name(relation[:-1])
     return related_class(**build_args[relation])
+
+def record_args(arg_dict):
+    return {key: value
+            for key, value in arg_dict.items()
+            if type(value) is not dict}
 
 # Here to prevent circular import loop
 from lazy_record.errors import *

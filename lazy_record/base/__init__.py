@@ -8,6 +8,7 @@ from lazy_record.errors import *
 import lazy_record.typecasts as typecasts
 import query_methods
 from validations import Validations
+import lazy_record.associations as associations
 
 
 class Base(query_methods.QueryMethods, Validations):
@@ -77,11 +78,7 @@ class Base(query_methods.QueryMethods, Validations):
         if name in ("id", "created_at", "updated_at"):
             raise AttributeError("Cannot set '{}'".format(name))
         elif name in self.__class__.__associations__:
-            # Only works for setting in belongs_to
-            if isinstance(value, Base):
-                setattr(self,
-                        self.__class__.__foreign_keys__[name],
-                        value.id)
+            self._set_belongs_to(name, value)
         elif name in self.__class__.__attributes__:
             if value is not None:
                 setattr(self, "_" + name,
@@ -90,6 +87,19 @@ class Base(query_methods.QueryMethods, Validations):
                 setattr(self, "_" + name, None)
         else:
             super(Base, self).__setattr__(name, value)
+
+    def _set_belongs_to(self, association, record):
+        associated_model = associations.model_from_name(association)
+        if isinstance(record, associated_model):
+            setattr(self,
+                    self.__class__.__foreign_keys__[association],
+                    record.id)
+        else:
+            raise AssociationTypeMismatch(
+                "Expected record of type {expected}, got {actual}.".format(
+                    expected=associated_model.__name__,
+                    actual=record.__class__.__name__
+                ))
 
     @classmethod
     def from_dict(cls, **kwargs):
