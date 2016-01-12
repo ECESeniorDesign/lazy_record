@@ -28,14 +28,6 @@ class Base(query_methods.QueryMethods, Validations):
         for attr in self.__class__.__all_attributes__:
             setattr(self, "_" + attr, None)
         self.update(**kwargs)
-        for attr, value in kwargs.items():
-            # Check for anything like Post(user=User())
-            if attr in self.__class__.__associations__:
-                # Only works for setting in belongs_to
-                if isinstance(value, Base):
-                    setattr(self,
-                            self.__class__.__foreign_keys__[attr],
-                            value.id)
         self._id = None
         self.__table = Repo.table_name(self.__class__)
         self._related_records = []
@@ -84,6 +76,12 @@ class Base(query_methods.QueryMethods, Validations):
         """
         if name in ("id", "created_at", "updated_at"):
             raise AttributeError("Cannot set '{}'".format(name))
+        elif name in self.__class__.__associations__:
+            # Only works for setting in belongs_to
+            if isinstance(value, Base):
+                setattr(self,
+                        self.__class__.__foreign_keys__[name],
+                        value.id)
         elif name in self.__class__.__attributes__:
             if value is not None:
                 setattr(self, "_" + name,
@@ -112,7 +110,8 @@ class Base(query_methods.QueryMethods, Validations):
         attributes not in __attributes__ from being set.
         """
         for attr, val in kwargs.items():
-            if attr in (list(self.__class__.__attributes__)):
+            if attr in (list(self.__class__.__attributes__) + \
+                        list(self.__class__.__associations__)):
                 setattr(self, attr, val)
 
     def delete(self):
