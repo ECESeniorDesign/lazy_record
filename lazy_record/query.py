@@ -127,7 +127,7 @@ class Query(object):
         self.join_args = list(do_join(table, self.model))
         return self
 
-    def _do_query(self):
+    def _query_repo(self):
         repo = Repo(self.table)
         if self.where_query or self.custom_where:
             repo = repo.where(self.custom_where, **self.where_query)
@@ -135,13 +135,20 @@ class Query(object):
             repo = repo.inner_join(*self.join_args)
         if self._order_with:
             repo = repo.order_by(**self._order_with)
-        return repo.select(*self.attributes)
+        return repo
+
+    def _do_query(self):
+        return self._query_repo().select(*self.attributes)
 
     def __iter__(self):
         result = self._do_query().fetchall()
         for record in result:
             args = dict(zip(self.attributes, record))
             yield self.model.from_dict(**args)
+
+    def __len__(self):
+        result = self._query_repo().count()
+        return result.fetchone()[0]
 
     def __repr__(self):
         return "<{name} {records}>".format(

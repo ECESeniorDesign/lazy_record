@@ -197,6 +197,15 @@ class TestQuery(unittest.TestCase):
         repo.select.return_value = mock.Mock(fetchall=fetchall)
         self.assertIn("mytestvalue", Query(TunaCasserole).all())
 
+    def test_len_invokes_SQL_count_function(self, Repo):
+        repo = Repo.return_value
+        len(Query(TunaCasserole).all())
+        repo.count.assert_called_with
+
+    def test_returns_SQL_count(self, Repo):
+        fetchone = Repo.return_value.count.return_value.fetchone
+        fetchone.return_value = (2276,)
+        self.assertEqual(len(Query(TunaCasserole).all()), 2276)
 
 if __name__ == '__main__':
     unittest.main()

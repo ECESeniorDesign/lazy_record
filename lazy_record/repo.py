@@ -155,6 +155,18 @@ class Repo(object):
         ).rstrip()
         return Repo.db.execute(cmd, self.where_values)
 
+    def count(self):
+        """
+        Count the number of records in the table, subject to the query.
+        """
+        cmd = ("select COUNT(*) from {table} "
+               "{join_clause}{where_clause}{order_clause}").format(
+                    table=self.table_name,
+                    where_clause=self.where_clause,
+                    join_clause=self.join_clause,
+                    order_clause=self.order_clause).rstrip()
+        return Repo.db.execute(cmd, self.where_values)
+
     def insert(self, **data):
         """
         Insert the passed +data+ into the table. Raises Invalid if a where

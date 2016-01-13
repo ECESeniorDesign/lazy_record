@@ -178,6 +178,16 @@ class TestRepo(unittest.TestCase):
             "select tuna_casseroles.id, tuna_casseroles.created_at from "
             "tuna_casseroles order by id desc", [])
 
+    def test_gets_count_of_records(self, db):
+        Repo("tuna_casseroles").count()
+        db.execute.assert_called_once_with(
+            "select COUNT(*) from tuna_casseroles", [])
+
+    def test_gets_count_of_records_with_other_query_elements(self, db):
+        Repo("tuna_casseroles").where(id=11).count()
+        db.execute.assert_called_once_with(
+            "select COUNT(*) from tuna_casseroles "
+            "where tuna_casseroles.id == ?", [11])
 
 if __name__ == '__main__':
     unittest.main()
