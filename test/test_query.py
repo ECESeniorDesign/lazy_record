@@ -207,5 +207,10 @@ class TestQuery(unittest.TestCase):
         fetchone.return_value = (2276,)
         self.assertEqual(len(Query(TunaCasserole).all()), 2276)
 
+    def test_where_with_list_uses_sql_in(self, Repo):
+        repo = Repo.return_value
+        list(Query(TunaCasserole).where(name=["foo", "bar", "baz"]))
+        repo.where.assert_called_with([], name=["foo", "bar", "baz"])
+
 if __name__ == '__main__':
     unittest.main()

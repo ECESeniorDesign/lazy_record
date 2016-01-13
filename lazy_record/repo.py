@@ -28,7 +28,9 @@ class Repo(object):
         """
         Analog to SQL "WHERE". Does not perform a query until `select` is
         called. Returns a repo object. Options selected through keyword
-        arguments are assumed to use ==.
+        arguments are assumed to use == unles the value is a list, tuple, or
+        dictionary. List or tuple values translate to an SQL `IN` over those
+        values, and a dictionary looks up under a different table when joined.
 
         ex)
 
@@ -36,6 +38,8 @@ class Repo(object):
         SELECT foos.* FROM foos WHERE foos.id == 11
         >>> Repo("foos").where([("id > ?", 12)]).select("*")
         SELECT foos.* FROM foos WHERE foos.id > 12
+        >>> Repo("foos").where(id=[1,2,3]).select("*")
+        SELECT foos.* FROM foos WHERE foos.id IN (1, 2, 3)
         """
 
         def scope_name(query, table):
@@ -49,33 +53,45 @@ class Repo(object):
                                       for entry in split_query)
             return query
 
-        ordered_items = self._build_where(restrictions)
+        def build_in(table, name, value):
+            return "{}.{} IN ({})".format(table, name,
+                                          ", ".join(["?"] * len(value)))
+
+        ordered_items, in_items = self._build_where(restrictions)
         # Construct the query text
         standard_query_items = ["{}.{} == ?".format(pair[0], pair[1])
                                 for pair in ordered_items]
         custom_query_items = [scope_name(restriction[0], self.table_name)
                               for restriction in custom_restrictions]
-        query_items = standard_query_items + custom_query_items
+        in_query_items = [build_in(*restriction)
+                          for restriction in in_items]
+        query_items = standard_query_items + custom_query_items + \
+                      in_query_items
         self.where_clause = "where {query} ".format(
             query=" and ".join(query_items))
         # Construct the query values
         standard_query_values = [pair[2] for pair in ordered_items]
         custom_query_values = list(chain(
             *[restriction[1:] for restriction in custom_restrictions]))
-        self.where_values = standard_query_values + custom_query_values
+        in_query_values = list(chain(*[pair[2] for pair in in_items]))
+        self.where_values = standard_query_values + custom_query_values + \
+                            in_query_values
         return self
 
     def _build_where(self, where_query):
         # Recursively loops through the where query to produce a list of
         # 3-tuples that contain the (table name, column, value)
-        def builder(where_dict, default_table):
+        def builder(where_dict, default_table, for_in):
             for key, value in where_dict.items():
+                use_in = type(value) in (tuple, list)
                 if type(value) is dict:
-                    for entry in builder(value, key):
+                    for entry in builder(value, key, for_in):
                         yield entry
-                else:
+                elif (use_in and for_in or not (use_in or for_in)):
                     yield (default_table, key, value)
-        return list(builder(where_query, self.table_name))
+
+        return list(builder(where_query, self.table_name, for_in=False)), \
+               list(builder(where_query, self.table_name, for_in=True))
 
     def inner_join(self, *joiners):
         """

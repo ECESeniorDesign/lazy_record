@@ -189,5 +189,21 @@ class TestRepo(unittest.TestCase):
             "select COUNT(*) from tuna_casseroles "
             "where tuna_casseroles.id == ?", [11])
 
+    def test_where_with_list_generates_in(self, db):
+        Repo("tuna_casseroles").where(name=["foo", "bar", "baz"]).select("*")
+        db.execute.assert_called_once_with(
+            "select tuna_casseroles.* from tuna_casseroles "
+            "where tuna_casseroles.name IN (?, ?, ?)",
+            ["foo", "bar", "baz"])
+
+    def test_where_with_list_generates_in_with_multiple(self, db):
+        Repo("tuna_casseroles").where(name=["foo", "bar", "baz"],
+                                      id=(1,2)).select("*")
+        db.execute.assert_called_once_with(
+            "select tuna_casseroles.* from tuna_casseroles "
+            "where tuna_casseroles.name IN (?, ?, ?) "
+            "and tuna_casseroles.id IN (?, ?)",
+            ["foo", "bar", "baz", 1, 2])
+
 if __name__ == '__main__':
     unittest.main()
