@@ -84,7 +84,7 @@ class TestBase(unittest.TestCase):
         repo = Repo.return_value
         repo.where.assert_called_with(id=3)
         where = repo.where.return_value
-        where.delete.assert_called_with_with()
+        where.delete.assert_called_with()
 
     def test_allows_finding_of_records_by_id(self, Query, Repo, datetime):
         MyModel.find(1)
