@@ -23,6 +23,7 @@ class Repo(object):
         self.where_values = []
         self.inner_joins = []
         self.order_clause = ""
+        self.group_clause = ""
 
     def where(self, custom_restrictions=[], **restrictions):
         """
@@ -134,6 +135,10 @@ class Repo(object):
             col=col, order=order)
         return self
 
+    def group_by(self, column):
+        self.group_clause = "GROUP BY {} ".format(column)
+        return self
+
     @property
     def join_clause(self):
         # Internal use only, but the API should be stable, except for when we
@@ -162,12 +167,14 @@ class Repo(object):
             for attr in attributes
         ]
         cmd = ('select {attrs} from {table} '
-               '{join_clause}{where_clause}{order_clause}').format(
+               '{join_clause}{where_clause}{order_clause}'
+               '{group_clause}').format(
             table=self.table_name,
             attrs=", ".join(namespaced_attributes),
             where_clause=self.where_clause,
             join_clause=self.join_clause,
             order_clause=self.order_clause,
+            group_clause=self.group_clause,
         ).rstrip()
         return Repo.db.execute(cmd, self.where_values)
 

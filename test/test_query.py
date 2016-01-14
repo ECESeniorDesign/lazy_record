@@ -14,6 +14,7 @@ class TunaCasserole(object):
     __all_attributes__ = {"my_attr": int, "created_at": int, "updated_at":int}
     __foreign_keys__ = {"tuna_casserole": "tuna_casserole_id"}
     __associations__ = {"my_relations": None}
+    __scopes__ = {}
 
     def __init__(self, **kwargs):
         self._related_records = []
@@ -211,6 +212,11 @@ class TestQuery(unittest.TestCase):
         repo = Repo.return_value
         list(Query(TunaCasserole).where(name=["foo", "bar", "baz"]))
         repo.where.assert_called_with([], name=["foo", "bar", "baz"])
+
+    def test_group_delegates_to_repo(self, Repo):
+        repo = Repo.return_value
+        list(Query(TunaCasserole).group("name"))
+        repo.group_by.assert_called_with("name")
 
 if __name__ == '__main__':
     unittest.main()

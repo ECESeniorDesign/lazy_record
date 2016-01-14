@@ -205,5 +205,11 @@ class TestRepo(unittest.TestCase):
             "and tuna_casseroles.id IN (?, ?)",
             ["foo", "bar", "baz", 1, 2])
 
+    def test_group_generates_group_by_clause(self, db):
+        Repo("tuna_casseroles").group_by("name").select("*")
+        db.execute.assert_called_once_with(
+            "select tuna_casseroles.* from tuna_casseroles "
+            "GROUP BY name", [])
+
 if __name__ == '__main__':
     unittest.main()
