@@ -42,7 +42,31 @@ class Repo(object):
         >>> Repo("foos").where(id=[1,2,3]).select("*")
         SELECT foos.* FROM foos WHERE foos.id IN (1, 2, 3)
         """
+        # Generate the SQL pieces and the relevant values
+        standard_names, standard_values = self._standard_items(restrictions)
+        custom_names, custom_values = self._custom_items(custom_restrictions)
+        in_names, in_values = self._in_items(restrictions)
+        query_names = standard_names + custom_names + in_names
+        # Stitch them into a clause with values
+        if query_names:
+            self.where_values = standard_values + custom_values + in_values
+            self.where_clause = "where {query} ".format(
+                query=" and ".join(query_names))
+        return self
 
+    def _in_items(self, restrictions):
+        """Generate argument pairs for queries like where(id=[1, 2])"""
+        def build_in(table, name, value):
+            return "{}.{} IN ({})".format(table, name,
+                                          ", ".join(["?"] * len(value)))
+
+        in_items = self._build_where(restrictions, for_in=True)
+        names = [build_in(*restriction) for restriction in in_items]
+        values = list(chain(*[item[2] for item in in_items]))
+        return (names, values)
+
+    def _custom_items(self, restrictions):
+        """Generate argument pairs for queries like where("id > ?", 7)"""
         def scope_name(query, table):
             # The first entry in the query is the column
             # If the column already has a ".", that means that the table has
@@ -54,32 +78,21 @@ class Repo(object):
                                       for entry in split_query)
             return query
 
-        def build_in(table, name, value):
-            return "{}.{} IN ({})".format(table, name,
-                                          ", ".join(["?"] * len(value)))
+        names = [scope_name(restriction[0], self.table_name)
+                 for restriction in restrictions]
+        values = list(chain(
+            *[restriction[1:] for restriction in restrictions]))
+        return (names, values)
 
-        ordered_items, in_items = self._build_where(restrictions)
-        # Construct the query text
-        standard_query_items = ["{}.{} == ?".format(pair[0], pair[1])
-                                for pair in ordered_items]
-        custom_query_items = [scope_name(restriction[0], self.table_name)
-                              for restriction in custom_restrictions]
-        in_query_items = [build_in(*restriction)
-                          for restriction in in_items]
-        query_items = standard_query_items + custom_query_items + \
-                      in_query_items
-        self.where_clause = "where {query} ".format(
-            query=" and ".join(query_items))
-        # Construct the query values
-        standard_query_values = [pair[2] for pair in ordered_items]
-        custom_query_values = list(chain(
-            *[restriction[1:] for restriction in custom_restrictions]))
-        in_query_values = list(chain(*[pair[2] for pair in in_items]))
-        self.where_values = standard_query_values + custom_query_values + \
-                            in_query_values
-        return self
+    def _standard_items(self, restrictions):
+        """Generate argument pairs for queries like where(id=2)"""
+        standard_items = self._build_where(restrictions, for_in=False)
+        names = ["{}.{} == ?".format(pair[0], pair[1])
+                 for pair in standard_items]
+        values = [item[2] for item in standard_items]
+        return (names, values)
 
-    def _build_where(self, where_query):
+    def _build_where(self, where_query, for_in):
         # Recursively loops through the where query to produce a list of
         # 3-tuples that contain the (table name, column, value)
         def builder(where_dict, default_table, for_in):
@@ -91,8 +104,7 @@ class Repo(object):
                 elif (use_in and for_in or not (use_in or for_in)):
                     yield (default_table, key, value)
 
-        return list(builder(where_query, self.table_name, for_in=False)), \
-               list(builder(where_query, self.table_name, for_in=True))
+        return list(builder(where_query, self.table_name, for_in))
 
     def inner_join(self, *joiners):
         """
@@ -130,13 +142,15 @@ class Repo(object):
 
         YES: repo.order_by(id="asc)
         """
-        col, order = kwargs.popitem()
-        self.order_clause = "order by {col} {order} ".format(
-            col=col, order=order)
+        if kwargs:
+            col, order = kwargs.popitem()
+            self.order_clause = "order by {col} {order} ".format(
+                col=col, order=order)
         return self
 
     def group_by(self, column):
-        self.group_clause = "GROUP BY {} ".format(column)
+        if column:
+            self.group_clause = "GROUP BY {} ".format(column)
         return self
 
     @property
