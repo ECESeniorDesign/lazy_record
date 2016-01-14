@@ -24,6 +24,8 @@ class Repo(object):
         self.inner_joins = []
         self.order_clause = ""
         self.group_clause = ""
+        self.having_clause = ""
+        self.having_values = []
 
     def where(self, custom_restrictions=[], **restrictions):
         """
@@ -153,6 +155,14 @@ class Repo(object):
             self.group_clause = "GROUP BY {} ".format(column)
         return self
 
+    def having(self, conditions):
+        names = [condition[0] for condition in conditions]
+        self.having_values = list(chain(
+            *[condition[1:] for condition in conditions]))
+        self.having_clause = "HAVING {query} ".format(
+            query=" and ".join(names))
+        return self
+
     @property
     def join_clause(self):
         # Internal use only, but the API should be stable, except for when we
@@ -182,15 +192,16 @@ class Repo(object):
         ]
         cmd = ('select {attrs} from {table} '
                '{join_clause}{where_clause}{order_clause}'
-               '{group_clause}').format(
+               '{group_clause}{having_clause}').format(
             table=self.table_name,
             attrs=", ".join(namespaced_attributes),
             where_clause=self.where_clause,
             join_clause=self.join_clause,
             order_clause=self.order_clause,
             group_clause=self.group_clause,
+            having_clause=self.having_clause,
         ).rstrip()
-        return Repo.db.execute(cmd, self.where_values)
+        return Repo.db.execute(cmd, self.where_values + self.having_values)
 
     def count(self):
         """

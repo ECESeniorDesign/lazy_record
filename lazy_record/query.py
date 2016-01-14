@@ -22,6 +22,7 @@ class Query(object):
         self.record = record
         self.where_query = {}
         self.custom_where = []
+        self.having_args = []
         self.join_args = []
         self._order_with = {}
         self.group_column = None
@@ -135,6 +136,17 @@ class Query(object):
         self.group_column = column
         return self
 
+    def having(self, *conditions):
+        """
+        SQL uses the `HAVING` clause to specify conditions on the `GROUP BY`
+        fields. Similarly, `having` allows specification of +conditions+ on
+        fields chosen by `group`.
+
+        >>> Order.all().group("date(created_at)").having("sum(price) > ?", 10)
+        """
+        self.having_args.append(tuple(conditions))
+        return self
+
     def _query_repo(self):
         repo = Repo(self.table)
         if self.where_query or self.custom_where:
@@ -145,6 +157,8 @@ class Query(object):
             repo = repo.order_by(**self._order_with)
         if self.group_column:
             repo = repo.group_by(self.group_column)
+        if self.having_args:
+            repo = repo.having(self.having_args)
         return repo
 
     def _do_query(self):

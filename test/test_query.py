@@ -218,5 +218,10 @@ class TestQuery(unittest.TestCase):
         list(Query(TunaCasserole).group("name"))
         repo.group_by.assert_called_with("name")
 
+    def test_having_delegates_to_repo(self, Repo):
+        repo = Repo.return_value
+        list(Query(TunaCasserole).group("name").having("amount > ?", 15))
+        repo.group_by.return_value.having.assert_called_with([("amount > ?", 15)])
+
 if __name__ == '__main__':
     unittest.main()
