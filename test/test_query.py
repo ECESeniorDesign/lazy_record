@@ -223,5 +223,10 @@ class TestQuery(unittest.TestCase):
         list(Query(TunaCasserole).group("name").having("amount > ?", 15))
         repo.group_by.return_value.having.assert_called_with([("amount > ?", 15)])
 
+    def test_select_limits_selected_attributes(self, Repo):
+        repo = Repo.return_value
+        list(Query(TunaCasserole).select("name"))
+        repo.select.assert_called_with("name")
+
 if __name__ == '__main__':
     unittest.main()

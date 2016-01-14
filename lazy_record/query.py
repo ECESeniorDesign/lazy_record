@@ -147,6 +147,14 @@ class Query(object):
         self.having_args.append(tuple(conditions))
         return self
 
+    def select(self, *fields):
+        """
+        Limit the number of fields accessed by SQL to those passed in
+        +fields+.
+        """
+        self.attributes = fields
+        return self
+
     def _query_repo(self):
         repo = Repo(self.table)
         if self.where_query or self.custom_where:

@@ -12,3 +12,6 @@ class QueryInvalid(Exception):
 
 class AssociationTypeMismatch(Exception):
     pass
+
+class MissingAttributeError(Exception):
+    pass
