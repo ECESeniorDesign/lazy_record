@@ -178,6 +178,56 @@ class TestRepo(unittest.TestCase):
             "select tuna_casseroles.id, tuna_casseroles.created_at from "
             "tuna_casseroles order by id desc", [])
 
+    def test_gets_count_of_records(self, db):
+        Repo("tuna_casseroles").count()
+        db.execute.assert_called_once_with(
+            "select COUNT(*) from tuna_casseroles", [])
+
+    def test_gets_count_of_records_with_other_query_elements(self, db):
+        Repo("tuna_casseroles").where(id=11).count()
+        db.execute.assert_called_once_with(
+            "select COUNT(*) from tuna_casseroles "
+            "where tuna_casseroles.id == ?", [11])
+
+    def test_where_with_list_generates_in(self, db):
+        Repo("tuna_casseroles").where(name=["foo", "bar", "baz"]).select("*")
+        db.execute.assert_called_once_with(
+            "select tuna_casseroles.* from tuna_casseroles "
+            "where tuna_casseroles.name IN (?, ?, ?)",
+            ["foo", "bar", "baz"])
+
+    def test_where_with_list_generates_in_with_multiple(self, db):
+        Repo("tuna_casseroles").where(name=["foo", "bar", "baz"],
+                                      id=(1,2)).select("*")
+        db.execute.assert_called_once_with(
+            "select tuna_casseroles.* from tuna_casseroles "
+            "where tuna_casseroles.name IN (?, ?, ?) "
+            "and tuna_casseroles.id IN (?, ?)",
+            ["foo", "bar", "baz", 1, 2])
+
+    def test_group_generates_group_by_clause(self, db):
+        Repo("tuna_casseroles").group_by("name").select("*")
+        db.execute.assert_called_once_with(
+            "select tuna_casseroles.* from tuna_casseroles "
+            "GROUP BY name", [])
+
+    def test_having_generates_having_clause(self, db):
+        Repo("tuna_casseroles").group_by("name"
+                              ).having([("sum(value) > ?", 11)]).select("*")
+        db.execute.assert_called_once_with(
+            "select tuna_casseroles.* from tuna_casseroles "
+            "GROUP BY name "
+            "HAVING sum(value) > ?", [11])
+
+    def test_where_and_having_puts_values_in_correct_order(self, db):
+        Repo("tuna_casseroles").where(id=87
+                              ).group_by("name"
+                              ).having([("sum(value) > ?", 11)]).select("*")
+        db.execute.assert_called_once_with(
+            "select tuna_casseroles.* from tuna_casseroles "
+            "where tuna_casseroles.id == ? "
+            "GROUP BY name "
+            "HAVING sum(value) > ?", [87, 11])
 
 if __name__ == '__main__':
     unittest.main()

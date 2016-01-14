@@ -286,6 +286,22 @@ class TestBase(unittest.TestCase):
         with self.assertRaises(lazy_record.AssociationTypeMismatch):
             m.my_other_model = m2
 
+    def test_accessing_attribute_not_loaded_raises(self, Query, Repo, dt):
+        m = MyModel.from_dict(id=1)
+        with self.assertRaises(lazy_record.MissingAttributeError):
+            m.name
+
+    def test_accessing_attribute_not_loaded_raises_no_id(self, Query, R, dt):
+        m = MyModel.from_dict(name="foo")
+        with self.assertRaises(lazy_record.MissingAttributeError) as e:
+            m.id
+        self.assertEqual(e.exception.message,
+                         "'MyModel' object has no attribute 'id'")
+
+    def test_repr_without_timestamps(self, Query, Repo, datetime):
+        m = MyModel.from_dict(name="foo")
+        self.assertEqual(repr(m), "MyModel(name='foo')")
+
 @mock.patch("base.Repo")
 class TestBaseDestroy(unittest.TestCase):
 

@@ -9,6 +9,7 @@ import lazy_record.typecasts as typecasts
 import query_methods
 from validations import Validations
 import lazy_record.associations as associations
+from itertools import chain
 
 
 class Base(query_methods.QueryMethods, Validations):
@@ -51,11 +52,16 @@ class Base(query_methods.QueryMethods, Validations):
         def identity(val): return val
         attr_dict = self.__class__.__all_attributes__
         if attr in attr_dict or attr == "id":
-            value = self.__getattribute__("_" + attr)
-            if value is not None:
-                return attr_dict.get(attr, identity)(value)
-            else:
-                return None
+            try:
+                value = self.__getattribute__("_" + attr)
+                if value is not None:
+                    return attr_dict.get(attr, identity)(value)
+                else:
+                    return None
+            except AttributeError:
+                raise MissingAttributeError(
+                    "'{}' object has no attribute '{}'".format(
+                    self.__class__.__name__, attr))
         else:
             return self.__getattribute__(attr)
 
@@ -109,7 +115,14 @@ class Base(query_methods.QueryMethods, Validations):
         constructing objects already present in the database (i.e for use by
         methods such as find or within Query).
         """
+        # Create the object
         obj = cls()
+        # By default, objects are initialized with attribute values of None
+        # We need to clear those out so that we get AttributeError on access
+        for attr in cls.__all_attributes__:
+            delattr(obj, "_" + attr)
+        del obj._id
+        # Set the attributes that were passed
         for attr, val in kwargs.items():
             setattr(obj, "_" + attr, val)
         return obj
@@ -214,15 +227,16 @@ class Base(query_methods.QueryMethods, Validations):
             if getattr(obj, attr):
                 return str(getattr(obj, attr).replace(microsecond=0))
 
-        return "{}({}, {})".format(
+        return "{}({})".format(
             self.__class__.__name__,
-            ", ".join(
-                "{}={!r}".format(attr, getattr(self, attr))
+            ", ".join(chain(
+                ("{}={!r}".format(attr, getattr(self, attr))
                 for attr in ["id"] + list(self.__class__.__attributes__)
                 if hasattr(self, attr)),
-            ", ".join(
-                "{}={}".format(attr, gettimestamp(self, attr))
-                for attr in ["created_at", "updated_at"]))
+
+                ("{}={}".format(attr, gettimestamp(self, attr))
+                for attr in ["created_at", "updated_at"]
+                if hasattr(self, attr)))))
 
 
     class __metaclass__(type):

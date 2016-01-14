@@ -14,6 +14,7 @@ class TunaCasserole(object):
     __all_attributes__ = {"my_attr": int, "created_at": int, "updated_at":int}
     __foreign_keys__ = {"tuna_casserole": "tuna_casserole_id"}
     __associations__ = {"my_relations": None}
+    __scopes__ = {}
 
     def __init__(self, **kwargs):
         self._related_records = []
@@ -197,6 +198,35 @@ class TestQuery(unittest.TestCase):
         repo.select.return_value = mock.Mock(fetchall=fetchall)
         self.assertIn("mytestvalue", Query(TunaCasserole).all())
 
+    def test_len_invokes_SQL_count_function(self, Repo):
+        repo = Repo.return_value
+        len(Query(TunaCasserole).all())
+        repo.count.assert_called_with
+
+    def test_returns_SQL_count(self, Repo):
+        fetchone = Repo.return_value.count.return_value.fetchone
+        fetchone.return_value = (2276,)
+        self.assertEqual(len(Query(TunaCasserole).all()), 2276)
+
+    def test_where_with_list_uses_sql_in(self, Repo):
+        repo = Repo.return_value
+        list(Query(TunaCasserole).where(name=["foo", "bar", "baz"]))
+        repo.where.assert_called_with([], name=["foo", "bar", "baz"])
+
+    def test_group_delegates_to_repo(self, Repo):
+        repo = Repo.return_value
+        list(Query(TunaCasserole).group("name"))
+        repo.group_by.assert_called_with("name")
+
+    def test_having_delegates_to_repo(self, Repo):
+        repo = Repo.return_value
+        list(Query(TunaCasserole).group("name").having("amount > ?", 15))
+        repo.group_by.return_value.having.assert_called_with([("amount > ?", 15)])
+
+    def test_select_limits_selected_attributes(self, Repo):
+        repo = Repo.return_value
+        list(Query(TunaCasserole).select("name"))
+        repo.select.assert_called_with("name")
 
 if __name__ == '__main__':
     unittest.main()
