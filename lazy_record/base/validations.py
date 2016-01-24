@@ -14,7 +14,7 @@ class Validations(object):
         valid = True
         for attr, validation in self.__class__.__validates__.items():
             if validation.__class__ == validators.validation:
-                validation.attr = attr
+                validation.name = attr
             if not validation(self):
                 reason[attr] = getattr(self, attr)
                 valid = False

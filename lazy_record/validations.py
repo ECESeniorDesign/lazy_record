@@ -25,7 +25,7 @@ def absent(record, name):
 @validation
 def unique(record, name):
     model = record.__class__
-    others = model.where("id != ?", record.id
+    others = model.where("id IS NOT ?", record.id
                  ).where("{} == ?".format(name), getattr(record, name))
     return len(list(others)) == 0
 
