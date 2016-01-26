@@ -26,7 +26,7 @@ class MyOtherModel(Base):
 
 @mock.patch("base.datetime")
 @mock.patch("base.Repo")
-@mock.patch("base.query_methods.Query")
+@mock.patch("base.Query")
 class TestBase(unittest.TestCase):
 
     def test_creates_records(self, Query, Repo, datetime):
@@ -170,13 +170,13 @@ class TestBase(unittest.TestCase):
 
     def test_gets_first_record(self, Query, Repo, datetime):
         MyModel.first()
-        Query.assert_called_once_with(MyModel)
+        Query.assert_called_with(MyModel)
         query = Query.return_value
         query.first.assert_called_with()
 
     def test_gets_last_record(self, Query, Repo, datetime):
         MyModel.last()
-        Query.assert_called_once_with(MyModel)
+        Query.assert_called_with(MyModel)
         query = Query.return_value
         query.last.assert_called_with()
 
@@ -301,6 +301,17 @@ class TestBase(unittest.TestCase):
     def test_repr_without_timestamps(self, Query, Repo, datetime):
         m = MyModel.from_dict(name="foo")
         self.assertEqual(repr(m), "MyModel(name='foo')")
+
+    def test_create_makes_record(self, Query, Repo, datetime):
+        with mock.patch.object(MyModel.__metaclass__, "__call__") as model:
+            MyModel.create(name="foo")
+            Query(MyModel).create.assert_called_with(name="foo")
+
+    def test_create_returns_record(self, Query, Repo, datetime):
+        record = mock.Mock(name="record")
+        Query(MyModel).create.return_value = record
+        self.assertEqual(MyModel.create(), record)
+
 
 @mock.patch("base.Repo")
 class TestBaseDestroy(unittest.TestCase):

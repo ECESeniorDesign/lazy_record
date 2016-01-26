@@ -70,10 +70,8 @@ class TestGettingRecordsThroughJoin(unittest.TestCase):
     def setUp(self):
         lazy_record.connect_db()
         lazy_record.load_schema(test_schema)
-        self.person = Person()
-        self.person.save()
-        self.book = Book()
-        self.book.save()
+        self.person = Person.create()
+        self.book = Book.create()
         Lending(person_id=self.person.id, book_id=self.book.id).save()
 
     def tearDown(self):
@@ -83,8 +81,7 @@ class TestGettingRecordsThroughJoin(unittest.TestCase):
         self.assertIn(self.book.id, [b.id for b in self.person.books])
 
     def test_finds_records_through_many_to_many(self):
-        person = Person()
-        person.save()
+        person = Person.create()
         query = Person.joins("books")
         # Join finds the related record
         assert (self.person.id in [p.id for p in query])
@@ -92,8 +89,7 @@ class TestGettingRecordsThroughJoin(unittest.TestCase):
         assert (person.id not in [p.id for p in query])
 
     def test_finds_records_through_one_to_many(self):
-        person = Person()
-        person.save()
+        person = Person.create()
         query = Person.joins("lendings")
         # Join finds the related record
         assert (self.person.id in [p.id for p in query])

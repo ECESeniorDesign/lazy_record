@@ -6,13 +6,12 @@ from repo import Repo
 import datetime
 from lazy_record.errors import *
 import lazy_record.typecasts as typecasts
-import query_methods
 from validations import Validations
 import lazy_record.associations as associations
 from itertools import chain
 
 
-class Base(query_methods.QueryMethods, Validations):
+class Base(Validations):
     __attributes__ = {}
     __foreign_keys__ = {}
     __dependents__ = []
@@ -34,6 +33,25 @@ class Base(query_methods.QueryMethods, Validations):
         self.__table = Repo.table_name(self.__class__)
         self._related_records = []
         self._delete_related_records = []
+
+    @classmethod
+    def find(cls, id):
+        """
+        Find record by +id+, raising RecordNotFound if no record exists.
+        """
+        return cls.find_by(id=id)
+
+    @classmethod
+    def find_by(cls, **kwargs):
+        """
+        Find first record subject to restrictions in +kwargs+, raising
+        RecordNotFound if no such record exists.
+        """
+        result = Query(cls).where(**kwargs).first()
+        if result:
+            return result
+        else:
+            raise RecordNotFound(kwargs)
 
     def __getattr__(self, attr):
         """
@@ -275,6 +293,8 @@ class Base(query_methods.QueryMethods, Validations):
                 # Having defined the method, look again: it will be found under
                 # normal object lookup
                 return getattr(cls, attr)
+            elif hasattr(Query(cls), attr):
+                return getattr(Query(cls), attr)
             else:
                 # The attribute is not a scope: without __getattr__ defined,
                 # the behavior would be to raise AttributeError, so that's what
