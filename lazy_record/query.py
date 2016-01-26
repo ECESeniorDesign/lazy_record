@@ -188,6 +188,15 @@ class Query(object):
             records=list(self)
         )
 
+    def create(self, **attributes):
+        """
+        Creates a new record suject to the restructions in the query and with
+        the passed +attributes+. Operates using `build`.
+        """
+        record = self.build(**attributes)
+        record.save()
+        return record
+
     def build(self, **kwargs):
         """
         Builds a new record subject to the restrictions in the query.

@@ -228,5 +228,24 @@ class TestQuery(unittest.TestCase):
         list(Query(TunaCasserole).select("name"))
         repo.select.assert_called_with("name")
 
+    def test_creates_invokes_build(self, Repo):
+        query = Query(TunaCasserole).where(my_attr=11)
+        query.build = mock.Mock(name="build")
+        query.create(name="foo")
+        query.build.assert_called_with(name="foo")
+
+    def test_create_saves_record(self, Repo):
+        record = mock.Mock(name="record")
+        query = Query(TunaCasserole).where(my_attr=11)
+        query.build = mock.Mock(name="build", return_value=record)
+        query.create(name="foo")
+        record.save.assert_called_with()
+
+    def test_returns_saved_record(self, Repo):
+        record = mock.Mock(name="record")
+        query = Query(TunaCasserole).where(my_attr=11)
+        query.build = mock.Mock(name="build", return_value=record)
+        self.assertEqual(query.create(name="foo"), record)
+
 if __name__ == '__main__':
     unittest.main()
