@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.join(
     os.path.dirname(os.path.abspath(os.path.dirname(__file__))),
     "lazy_record"))
 from lazy_record.associations import *
+import lazy_record
 
 
 class Base(object):
@@ -14,6 +15,8 @@ class Base(object):
     __attributes__ = {}
     __foreign_keys__ = {}
     __associations__ = {}
+    def __init__(self):
+        self._related_records = []
 
 
 @has_many("comments")
@@ -36,7 +39,7 @@ class Comment(Base):
     def bar(Comment):
         return "baz"
 
-
+@has_one("thing")
 @belongs_to("comment")
 @belongs_to("post", foreign_key="postId")
 class TestModel(Base):
@@ -53,6 +56,14 @@ class Tagging(Base):
 class Tag(Base):
     pass
 
+@has_one("other_thing", foreign_key="thingId")
+@belongs_to("test_model")
+class Thing(Base):
+    pass
+
+@belongs_to("thing", foreign_key="thingId")
+class OtherThing(Base):
+    pass
 
 @mock.patch("lazy_record.associations.query")
 class TestBelongsTo(unittest.TestCase):
@@ -116,6 +127,12 @@ class TestBelongsTo(unittest.TestCase):
         new_post.id = 87
         self.comment.post = new_post
         self.assertEqual(self.comment.post_id, 87)
+
+    def test_setting_record_with_mismatch_raises(self, query):
+        with self.assertRaises(lazy_record.AssociationTypeMismatch):
+            not_post = Thing()
+            not_post.id = 81
+            self.comment.post = not_post
 
     def test_allows_changing_of_parent_to_None(self, query):
         self.comment.post = None
@@ -195,6 +212,55 @@ class TestHasManyThrough(unittest.TestCase):
     def test_adds_entry_to_relationships(self, query):
         self.assertIn("tags", Post.__associations__)
         self.assertEqual(Post.__associations__["tags"], "taggings")
+
+
+@mock.patch("lazy_record.associations.query")
+class TestHasOne(unittest.TestCase):
+
+    def setUp(self):
+        self.test_model = TestModel()
+        self.test_model.id = 11
+        self.thing = Thing()
+        self.thing.id = 17
+
+    def test_makes_query_for_child_object(self, query):
+        self.test_model.thing
+        query.Query.assert_called_with(Thing, record=self.test_model)
+        q = query.Query.return_value
+        q.where.assert_called_with(test_model_id=11)
+
+    def test_gets_one_record(self, query):
+        q = query.Query.return_value.where.return_value
+        record = q.first.return_value
+        self.assertEqual(self.test_model.thing, record)
+        q.first.assert_called_with()
+
+    def test_adds_child_as_dependent(self, query):
+        self.assertIn("thing", TestModel.__dependents__)
+
+    def test_adds_child_to_relationships(self, query):
+        self.assertIn("thing", TestModel.__associations__)
+        self.assertEqual(TestModel.__associations__["thing"], None)
+
+    def test_getting_using_custom_foreign_key(self, query):
+        self.thing.other_thing
+        query.Query.assert_called_with(OtherThing, record=self.thing)
+        q = query.Query.return_value
+        q.where.assert_called_with(thingId=17)
+
+    def test_setting_child_record(self, query):
+        other_thing = OtherThing()
+        self.thing.other_thing = other_thing
+        self.assertIn(other_thing, self.thing._related_records)
+        self.assertEqual(other_thing.thingId, 17)
+
+    def test_setting_child_raises_if_types_dont_match(self, query):
+        with self.assertRaises(lazy_record.AssociationTypeMismatch):
+            self.thing.other_thing = Post()
+
+    def test_adds_foreign_key(self, query):
+        self.assertIn("other_thing", Thing.__foreign_keys__)
+        self.assertEqual("thingId", Thing.__foreign_keys__["other_thing"])
 
 
 if __name__ == '__main__':

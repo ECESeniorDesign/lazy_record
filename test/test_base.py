@@ -260,32 +260,6 @@ class TestBase(unittest.TestCase):
         m = MyModel(name="invalid")
         self.assertFalse(m.is_valid())
 
-    @mock.patch("base.associations.model_from_name")
-    @mock.patch.object(MyModel, "__associations__",
-                       new={"my_other_model": None})
-    @mock.patch.object(MyModel, "__foreign_keys__",
-                       new={"my_other_model": "my_other_model_id"})
-    def test_setting_record(self, mfn, Query, Repo, dt):
-        mfn.return_value = MyOtherModel
-        m = MyModel()
-        m2 = MyOtherModel()
-        m2._id = 2
-        m.my_other_model = m2
-        self.assertEqual(m.my_other_model_id, 2)
-
-    @mock.patch("base.associations.model_from_name")
-    @mock.patch.object(MyModel, "__associations__",
-                       new={"my_other_model": None})
-    @mock.patch.object(MyModel, "__foreign_keys__",
-                       new={"my_other_model": "my_other_model_id"})
-    def test_setting_record_with_mismatch_raises(self, mfn, Query, Repo, dt):
-        mfn.return_value = MyOtherModel
-        m = MyModel()
-        m2 = MyModel()
-        m2._id = 2
-        with self.assertRaises(lazy_record.AssociationTypeMismatch):
-            m.my_other_model = m2
-
     def test_accessing_attribute_not_loaded_raises(self, Query, Repo, dt):
         m = MyModel.from_dict(id=1)
         with self.assertRaises(lazy_record.MissingAttributeError):

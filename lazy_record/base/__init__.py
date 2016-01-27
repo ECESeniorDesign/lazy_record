@@ -101,8 +101,6 @@ class Base(Validations):
         """
         if name in ("id", "created_at", "updated_at"):
             raise AttributeError("Cannot set '{}'".format(name))
-        elif name in self.__class__.__associations__:
-            self._set_belongs_to(name, value)
         elif name in self.__class__.__attributes__:
             if value is not None:
                 setattr(self, "_" + name,
@@ -111,19 +109,6 @@ class Base(Validations):
                 setattr(self, "_" + name, None)
         else:
             super(Base, self).__setattr__(name, value)
-
-    def _set_belongs_to(self, association, record):
-        associated_model = associations.model_from_name(association)
-        if isinstance(record, associated_model):
-            setattr(self,
-                    self.__class__.__foreign_keys__[association],
-                    record.id)
-        else:
-            raise AssociationTypeMismatch(
-                "Expected record of type {expected}, got {actual}.".format(
-                    expected=associated_model.__name__,
-                    actual=record.__class__.__name__
-                ))
 
     @classmethod
     def from_dict(cls, **kwargs):

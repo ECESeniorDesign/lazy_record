@@ -1,6 +1,6 @@
 import query
 import repo
-
+from lazy_record.errors import *
 
 models = {}
 
@@ -11,6 +11,14 @@ def model_from_name(parent_name):
     )
     return models[class_name]
 
+def _verify_type_match(record, association):
+    associated_model = model_from_name(association)
+    if not isinstance(record, associated_model):
+        raise AssociationTypeMismatch(
+            "Expected record of type {expected}, got {actual}.".format(
+                expected=associated_model.__name__,
+                actual=record.__class__.__name__
+            ))
 
 class belongs_to(object):
     """
@@ -66,6 +74,7 @@ class belongs_to(object):
         # Setter method for updating the foreign key in this object
         def parent_record_setter(wrapped_obj, new_parent):
             if new_parent is not None:
+                _verify_type_match(new_parent, self.parent_name)
                 # We are setting a parent: grab it's id and use it
                 setattr(wrapped_obj, self.foreign_key, new_parent.id)
             else:
@@ -158,4 +167,41 @@ class has_many(object):
                 return q.where(**where_statement)
 
         setattr(klass, self.child_name, property(child_records_method))
+        return klass
+
+class has_one(object):
+    """
+    Decorator to establish this model as the parent in a one-to-one
+    relationship.
+    """
+    def __init__(self, child_name, foreign_key=None):
+        self.child_name = child_name
+        self.foreign_key = foreign_key
+
+    def __call__(self, klass):
+        self.foreign_key = self.foreign_key or "{name}_id".format(
+            name=repo.Repo.table_name(klass)[:-1])
+        klass.__dependents__ = klass.__dependents__ + [self.child_name]
+        # Add the relationship to the association list
+        klass.__associations__ = dict(klass.__associations__)
+        klass.__associations__[self.child_name] = None
+        # Add the foreign key to the fk list
+        klass.__foreign_keys__ = dict(klass.__foreign_keys__)
+        klass.__foreign_keys__[self.child_name] = self.foreign_key
+        models[klass.__name__] = klass
+
+        def child_record_method(wrapped_obj):
+            child = model_from_name(self.child_name)
+            q = query.Query(child, record=wrapped_obj)
+            where_statement = {self.foreign_key: wrapped_obj.id}
+            return q.where(**where_statement).first()
+
+        def set_child_record_method(wrapped_obj, child):
+            _verify_type_match(child, self.child_name)
+            # We are setting a child: set its foreign key to our id
+            setattr(child, self.foreign_key, wrapped_obj.id)
+            wrapped_obj._related_records.append(child)
+
+        setattr(klass, self.child_name, property(child_record_method,
+                                                 set_child_record_method))
         return klass
