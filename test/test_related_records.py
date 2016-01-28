@@ -11,6 +11,7 @@ import lazy_record
 
 # INTEGRATED TEST
 
+@has_one("thing")
 @has_many("lending_tables", through="lendings")
 @has_many("persons", through="lendings")
 @has_many("lendings")
@@ -25,6 +26,7 @@ class Lending(lazy_record.Base):
     pass
 
 
+@has_many("things", through="books")
 @has_many("books", through="lendings")
 @has_many("lendings")
 class Person(lazy_record.Base):
@@ -32,6 +34,10 @@ class Person(lazy_record.Base):
 
 @belongs_to("lending")
 class LendingTable(lazy_record.Base):
+    pass
+
+@belongs_to("book")
+class Thing(lazy_record.Base):
     pass
 
 test_schema = """
@@ -59,6 +65,13 @@ drop table if exists lending_tables;
 create table lending_tables (
   id integer primary key autoincrement,
   lending_id integer,
+  created_at timestamp not null,
+  updated_at timestamp not null
+);
+drop table if exists things;
+create table things (
+  id integer primary key autoincrement,
+  book_id integer,
   created_at timestamp not null,
   updated_at timestamp not null
 );
@@ -97,9 +110,11 @@ class TestGettingRecordsThroughJoin(unittest.TestCase):
         assert (person.id not in [p.id for p in query])
 
     def test_finds_records_through_deep_one_to_many(self):
+        # import pdb; pdb.set_trace()
         lending = Lending.first()
         lending_table = LendingTable(lending_id=lending.id)
         lending_table.save()
+        # import pdb; pdb.set_trace()
         self.assertIn(lending_table.id,
                       [l.id for l in self.book.lending_tables])
 
@@ -172,6 +187,22 @@ class TestDestroyingRecordsThroughJoin(unittest.TestCase):
         self.assertEqual(e.exception.message,
                          "Expected record of type Book, got Person.")
 
+class TestManyThroughOne(unittest.TestCase):
+
+    def setUp(self):
+        lazy_record.connect_db()
+        lazy_record.load_schema(test_schema)
+        self.person = Person.create()
+        self.book = Book.create()
+
+    @unittest.skip("WIP")
+    def test_finds_one_through_many(self):
+        Lending.create(person_id=self.person.id,
+                       book_id=self.book.id)
+        thing = Thing.create(book_id=self.book.id)
+        # import pdb
+        # pdb.set_trace()
+        self.assertIn(thing, self.person.things)
 
 class TestAddsRecords(unittest.TestCase):
 

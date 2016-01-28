@@ -13,8 +13,6 @@ import lazy_record
 class Base(object):
     __dependents__ = []
     __attributes__ = {}
-    __foreign_keys__ = {}
-    __associations__ = {}
     def __init__(self):
         self._related_records = []
 
@@ -27,7 +25,7 @@ class Post(Base):
     def boo(self):
         return "blah"
 
-
+@has_many("things", through="test_models")
 @belongs_to("post")
 @has_many("test_models")
 class Comment(Base):
@@ -52,6 +50,7 @@ class Tagging(Base):
     pass
 
 
+@has_many("another_things")
 @has_many("posts", through="taggings")
 class Tag(Base):
     pass
@@ -63,6 +62,9 @@ class Thing(Base):
 
 @belongs_to("thing", foreign_key="thingId")
 class OtherThing(Base):
+    pass
+
+class AnotherThing(Base):
     pass
 
 @mock.patch("lazy_record.associations.query")
@@ -139,7 +141,7 @@ class TestBelongsTo(unittest.TestCase):
         self.assertEqual(self.comment.post_id, None)
 
     def test_adds_entry_to_relationships(self, query):
-        self.assertIn("post", Comment.__associations__)
+        self.assertIn("post", associations_for(Comment))
 
 
 @mock.patch("lazy_record.associations.query")
@@ -159,7 +161,7 @@ class TestHasMany(unittest.TestCase):
 
     def test_makes_query_for_related_object(self, query):
         self.post.test_models
-        query.Query.assert_called_with(TestModel)
+        query.Query.assert_called_with(TestModel, record=self.post)
         q = query.Query.return_value
         q.where.assert_called_once_with(postId=11)
 
@@ -174,20 +176,28 @@ class TestHasMany(unittest.TestCase):
         q = query.Query.return_value
         # Test the first
         self.post.comments
-        query.Query.assert_called_with(Comment)
+        query.Query.assert_called_with(Comment, record=self.post)
         q.where.assert_called_with(post_id=11)
         # Test the second
         self.post.test_models
-        query.Query.assert_called_with(TestModel)
+        query.Query.assert_called_with(TestModel, record=self.post)
         q.where.assert_called_with(postId=11)
 
     def test_adds_children_as_dependents_when_not_joined(self, query):
         self.assertIn("comments", Post.__dependents__)
 
     def test_adds_entry_to_relationships(self, query):
-        self.assertIn("comments", Post.__associations__)
-        self.assertEqual(Post.__associations__["comments"], None)
+        self.assertIn("comments", associations_for(Post))
+        self.assertEqual(associations_for(Post)["comments"], None)
 
+    def test_adds_foreign_keys_for_child(self, query):
+        self.assertIn("tag", foreign_keys_for(AnotherThing))
+        self.assertEqual("tag_id", foreign_keys_for(AnotherThing)['tag'])
+
+    def test_adds_associations_for_child(self, query):
+        self.assertIn("tag", associations_for(AnotherThing))
+        self.assertEqual(None, associations_for(AnotherThing)['tag'])
+        
 
 @mock.patch("lazy_record.associations.query")
 class TestHasManyThrough(unittest.TestCase):
@@ -199,9 +209,9 @@ class TestHasManyThrough(unittest.TestCase):
         self.post.tags
         query.Query.assert_called_with(Tag, record=self.post)
         q = query.Query.return_value
-        q.joins.assert_called_with("taggings")
+        q.joins.assert_called_with("posts")
         q2 = q.joins.return_value
-        q2.where.assert_called_once_with(taggings=dict(post_id=11))
+        q2.where.assert_called_once_with(posts=dict(id=11))
 
     def test_adds_joining_table_as_dependent(self, query):
         self.assertIn("taggings", Post.__dependents__)
@@ -210,9 +220,13 @@ class TestHasManyThrough(unittest.TestCase):
         assert hasattr(self.post, "taggings")
 
     def test_adds_entry_to_relationships(self, query):
-        self.assertIn("tags", Post.__associations__)
-        self.assertEqual(Post.__associations__["tags"], "taggings")
+        self.assertIn("tags", associations_for(Post))
+        self.assertEqual(associations_for(Post)["tags"], "taggings")        
 
+    def test_adds_association_for_child(self, query):
+        self.assertIn("comment", associations_for(Thing))
+        self.assertEqual("test_model", associations_for(Thing)['comment'])
+        
 
 @mock.patch("lazy_record.associations.query")
 class TestHasOne(unittest.TestCase):
@@ -239,8 +253,8 @@ class TestHasOne(unittest.TestCase):
         self.assertIn("thing", TestModel.__dependents__)
 
     def test_adds_child_to_relationships(self, query):
-        self.assertIn("thing", TestModel.__associations__)
-        self.assertEqual(TestModel.__associations__["thing"], None)
+        self.assertIn("thing", associations_for(TestModel))
+        self.assertEqual(associations_for(TestModel)["thing"], None)
 
     def test_getting_using_custom_foreign_key(self, query):
         self.thing.other_thing
@@ -259,9 +273,38 @@ class TestHasOne(unittest.TestCase):
             self.thing.other_thing = Post()
 
     def test_adds_foreign_key(self, query):
-        self.assertIn("other_thing", Thing.__foreign_keys__)
-        self.assertEqual("thingId", Thing.__foreign_keys__["other_thing"])
+        self.assertIn("other_thing", foreign_keys_for(Thing))
+        self.assertEqual("thingId", foreign_keys_for(Thing)["other_thing"])
 
+
+class TestHasOneThroughOne(unittest.TestCase):
+    pass
+
+@mock.patch("lazy_record.associations.query")
+class TestHasManyThroughOne(unittest.TestCase):
+
+    def test_joins_middle_records(self, query):
+        comment = Comment()
+        comment.id = 16
+        comment.things
+        query.Query.assert_called_with(Thing, record=comment)
+        q = query.Query.return_value
+        q.joins.assert_called_with("comments")
+        j = q.joins.return_value
+        j.where.assert_called_with(comments={"id": 16})
+
+class TestHasOneThroughMany(unittest.TestCase):
+
+    def test_forbids_one_through_many(self):
+        
+        with self.assertRaises(lazy_record.AssociationForbidden) as e:
+            @has_one("thing", through="test_models")
+            @has_many("test_models")
+            class Forbidden(Base):
+                pass
+
+        self.assertEqual(e.exception.message,
+                         "Cannot have one 'thing' through many 'test_models'")
 
 if __name__ == '__main__':
     unittest.main()

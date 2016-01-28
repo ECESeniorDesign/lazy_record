@@ -106,24 +106,34 @@ class Query(object):
                 #       {'table': 'threads', 'on': ['forum_id', 'id']}
                 #       {'table': 'posts', 'on': ['thread_id', 'id']}
                 #    ]
-                if table in model.__associations__:
+                if table in associations.associations_for(model):
                     # This to next: one-many (they have the fk)
-                    # If model.__associations__[table] is None, then this is
+                    # TODO what to do for one-one when they have the fk?
+                    # If associations.associations_for(model)[table] is None, then this is
                     # terminal (i.e. table is the FINAL association in the
                     # chain)
-                    next_level = model.__associations__[table] or table
+                    next_level = associations.associations_for(model)[table] or table
                     next_model = associations.model_from_name(next_level[:-1])
                     this_table_name = Repo.table_name(model)
-                    foreign_key = model.__foreign_keys__.get(
+                    foreign_key = associations.foreign_keys_for(model).get(
                         next_level,
                         this_table_name[:-1] + "_id")
                     yield {'table': next_level, 'on': [foreign_key, 'id']}
                 else:
                     # This to next: many-one (we have the fk)
-                    foreign_key = model.__foreign_keys__.get(
-                        table, table[:-1] + "_id")
-                    yield {'table': table, 'on': ['id', foreign_key]}
-                    next_model = associations.model_from_name(table[:-1])
+                    # singular table had better be in associations.associations_for(model)
+                    # TODO Check for terminality as in the if
+                    next_level = associations.associations_for(model)[table[:-1]] or table[:-1]
+                    next_model = associations.model_from_name(next_level)
+                    this_table_name = Repo.table_name(model)
+                    foreign_key = associations.foreign_keys_for(model).get(
+                        next_level,
+                        this_table_name[:-1] + "_id")
+                    yield {'table': next_level + 's', 'on': ['id', foreign_key]}
+                    # foreign_key = associations.foreign_keys_for(model).get(
+                    #     table, table[:-1] + "_id")
+                    # yield {'table': table, 'on': ['id', foreign_key]}
+                    # next_model = associations.model_from_name(table[:-1])
                 model = next_model
 
         self.join_args = list(do_join(table, self.model))
@@ -213,9 +223,8 @@ class Query(object):
             #   Post -> Tagging -> Tag
             # If we are adding a tag to a post, we need to create the tagging
             # in addition to the tag. To do this, we add a "related record" to
-            # the tag which is the tagging. We build this tagging using the
-            # restrictions to the tagging (the record in the `join_table`)
-            # where query.
+            # the tag which is the tagging. By building the previous record,
+            # if it exists, we can recursively build a long object tree.
             # That is, when we do post.tags(), we get a query that looks like:
             # Query(Tag).joins("taggings").where(taggings={"post_id":post.id})
             # The call to "build" then creates a tag using kwargs and the where
@@ -223,9 +232,12 @@ class Query(object):
             # Tagging(post_id = post.id) and adds it to the tag's related
             # records. The tagging's tag_id is added once the tag is saved
             # which is the first time it gets an id
-            relations = (arg['table'] for arg in self.join_args)
-            record._related_records += [build_relation(relation, build_args)
-                                        for relation in relations]
+            # Join args will never have just one element
+            next_to_build = getattr(self.record, self.join_args[-2]['table']).build()
+            # relations = (arg['table'] for arg in self.join_args)
+            # record._related_records += [build_relation(relation, build_args)
+            #                             for relation in relations]
+            record._related_records.append(next_to_build)
         return record
 
     def append(self, record):
@@ -251,20 +263,22 @@ class Query(object):
                 # The +final_join+ is what connects the record chain to the
                 # passed +record+
                 final_join = self.join_args[0]
-                final_join_args = build_args[final_join['table']]
                 # don't need to worry about one-to-many through because
                 # there is not enough information to find or create the
                 # joining record
                 # i.e. in the Forum -> Thread -> Post example
                 # forum.posts.append(post) doesn't make sense since there
                 # is no information about what thread it will be attached to
-                final_join_args[final_join['on'][0]] = getattr(
-                    record, final_join['on'][1])
-                relations = (arg['table'] for arg in self.join_args)
-                self.record._related_records += [
-                    build_relation(relation, build_args)
-                    for relation in relations]
-                # self.record._related_records.append(related_record)
+                # Thus, this only makes sense on many-to-many with no other
+                # complications
+                joining_relation = getattr(self.record, final_join['table'])
+                # Uses the lookup info in the join to figure out what ids to
+                # set, and where to get the id value from
+                joining_args = {final_join['on'][0]:
+                                getattr(record, final_join['on'][1])}
+                build_args.update(joining_args)
+                joining_record = joining_relation.build(**build_args)
+                self.record._related_records.append(joining_record)
             else:
                 # Add our id to their foreign key so that the relationship is
                 # created
@@ -292,7 +306,7 @@ class Query(object):
                 # If record has it, set to None, then done.
                 # If one level up has it, mark the record for destruction
                 final_table = self.join_args[0]['table']
-                if final_table in self.model.__associations__:
+                if final_table in associations.associations_for(self.model):
                     # +record+ does not have the foreign key
                     # Find the record one level up, then mark for destruction
                     related_class = associations.model_from_name(
@@ -307,7 +321,7 @@ class Query(object):
                     # this is a belongs_to, so the entry will be singular,
                     # whereas the table name is plural (we need to remove the
                     # 's' at the end)
-                    key = self.model.__foreign_keys__[final_table[:-1]]
+                    key = associations.foreign_keys_for(self.model)[final_table[:-1]]
                     # Set the foreign key to None to deassociate
                     setattr(record, key, None)
             else:
@@ -326,7 +340,7 @@ class Query(object):
         # id.
         record_class_name = Repo.table_name(record.__class__)[:-1]
         related_args = self.where_query.get(Repo.table_name(related_class), {})
-        related_key = related_class.__foreign_keys__[record_class_name]
+        related_key = associations.foreign_keys_for(related_class)[record_class_name]
         related_args[related_key] = record.id
         return related_args
 
@@ -362,7 +376,7 @@ class Query(object):
 def foreign_key(local, foreign):
     local_class = local.__class__
     foreign_class = foreign.__class__
-    return local_class.__foreign_keys__[Repo.table_name(foreign_class)[:-1]]
+    return associations.foreign_keys_for(local_class)[Repo.table_name(foreign_class)[:-1]]
 
 def build_relation(relation, build_args):
     related_class = associations.model_from_name(relation[:-1])

@@ -15,3 +15,6 @@ class AssociationTypeMismatch(Exception):
 
 class MissingAttributeError(Exception):
     pass
+
+class AssociationForbidden(Exception):
+    pass

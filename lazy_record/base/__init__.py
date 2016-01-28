@@ -13,9 +13,7 @@ from itertools import chain
 
 class Base(Validations):
     __attributes__ = {}
-    __foreign_keys__ = {}
     __dependents__ = []
-    __associations__ = {}
     __scopes__ = {}
 
     def __init__(self, **kwargs):
@@ -137,7 +135,7 @@ class Base(Validations):
         """
         for attr, val in kwargs.items():
             if attr in (list(self.__class__.__attributes__) + \
-                        list(self.__class__.__associations__)):
+                        list(associations.associations_for(self.__class__))):
                 setattr(self, attr, val)
 
     def delete(self):
@@ -152,7 +150,7 @@ class Base(Validations):
     def _do_destroy(self):
         Repo(self.__table).where(id=self.id).delete()
         for dependent in set(self.__class__.__dependents__):
-            for record in getattr(self, dependent):
+            for record in (getattr(self, dependent) or []):
                 record._do_destroy()
 
     def destroy(self):
@@ -193,7 +191,7 @@ class Base(Validations):
             our_name = Repo.table_name(self.__class__)[:-1]
             for record in self._related_records:
                 if not self._id:
-                    related_key = record.__class__.__foreign_keys__[our_name]
+                    related_key = associations.foreign_keys_for(record.__class__)[our_name]
                     setattr(record, related_key, self.__id)
                 record._do_save()
             for record in self._delete_related_records:

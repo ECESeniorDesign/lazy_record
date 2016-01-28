@@ -3,13 +3,14 @@ import repo
 from lazy_record.errors import *
 
 models = {}
-
+associations = {}
+foreign_keys = {}
 
 def model_from_name(parent_name):
-    class_name = "".join(
-        name.title() for name in parent_name.split("_")
-    )
-    return models[class_name]
+    return models[_model_name(parent_name)]
+
+def _model_name(parent_name):
+    return "".join(name.title() for name in parent_name.split("_"))
 
 def _verify_type_match(record, association):
     associated_model = model_from_name(association)
@@ -19,6 +20,23 @@ def _verify_type_match(record, association):
                 expected=associated_model.__name__,
                 actual=record.__class__.__name__
             ))
+
+def foreign_keys_for(klass):
+    if type(klass) == str:
+        klass_name = klass
+    else:
+        klass_name = klass.__name__
+    foreign_keys[klass_name] = foreign_keys.get(klass_name, {})
+    return foreign_keys[klass_name]
+
+def associations_for(klass):
+    if type(klass) == str:
+        klass_name = klass
+    else:
+        klass_name = klass.__name__
+    associations[klass_name] = associations.get(klass_name, {})
+    return associations[klass_name]
+
 
 class belongs_to(object):
     """
@@ -57,11 +75,9 @@ class belongs_to(object):
         # Add the model to the registry of known models with associations
         models[klass.__name__] = klass
         # Set the foreign key in the model in case it needs to be looked up
-        klass.__foreign_keys__ = dict(klass.__foreign_keys__)
-        klass.__foreign_keys__[self.parent_name] = self.foreign_key
+        foreign_keys_for(klass)[self.parent_name] = self.foreign_key
         # Add the relationship to the association list
-        klass.__associations__ = dict(klass.__associations__)
-        klass.__associations__[self.parent_name] = None
+        associations_for(klass)[self.parent_name] = None
 
         # Getter method for the parent record (e.g. comment.post)
         # Is added to the class as a property
@@ -122,22 +138,37 @@ class has_many(object):
         self.through = through
 
     def __call__(self, klass):
+        our_name = repo.Repo.table_name(klass)[:-1]
+        child_model_name = _model_name(self.child_name[:-1])
+        # If we are doing an implicit has_many using through, we should define it fully
+        if self.through and self.through not in associations_for(klass):
+            klass = has_many(self.through)(klass)
+        if self.through and self.through not in associations_for(child_model_name):
+            # Set up the association for the child
+            # Assume a one-many tree unless already defined otherwise
+            associations_for(child_model_name)[our_name] = self.through[:-1]
         # if no foreign key was passed, we should calculate it now based on
         # the class name
         self.foreign_key = self.foreign_key or "{name}_id".format(
-            name=repo.Repo.table_name(klass)[:-1])
+            name=our_name)
         models[klass.__name__] = klass
         # Add the foreign key to the fk list
-        klass.__foreign_keys__ = dict(klass.__foreign_keys__)
-        klass.__foreign_keys__[self.child_name] = self.foreign_key
+        if not self.through:
+            foreign_keys_for(klass)[self.child_name] = self.foreign_key
+            # Add the childs associations and foreign keys as if they had
+            # a belongs_to
+            foreign_keys_for(child_model_name)[our_name] = self.foreign_key
+            associations_for(child_model_name)[our_name] = None
+            
         # Add the relationship to the association list
-        klass.__associations__ = dict(klass.__associations__)
-        klass.__associations__[self.child_name] = self.through
+        associations_for(klass)[self.child_name] = self.through
+
         # Add the child table (or joining table) to the classes dependents
         # so that if this record is destroyed, all related child records
         # (or joining records) are destroyed with it to prevent orphans
         if self.through:
-            klass.__dependents__ = klass.__dependents__ + [self.through]
+            if self.through in foreign_keys_for(klass):
+                klass.__dependents__ = klass.__dependents__ + [self.through]
         else:
             klass.__dependents__ = klass.__dependents__ + [self.child_name]
         if self.through:
@@ -145,10 +176,19 @@ class has_many(object):
             # Do the query with a join
             def child_records_method(wrapped_obj):
                 child = model_from_name(self.child_name[:-1])
-                q = query.Query(child, record=wrapped_obj).joins(self.through)
-                where_statement = {
-                    self.through: {self.foreign_key: wrapped_obj.id}}
-                return q.where(**where_statement)
+                # No guarentee that self.through is the last in the chain
+                # It could be the other part of a many-to-many
+                # Or it could be a through that is a couple of levels down
+                # e.g. Category has many Posts through Threads
+                #      (but chain is Category -> Forum -> Thread -> Post)
+                return query.Query(child, record=wrapped_obj).joins(
+                          repo.Repo.table_name(wrapped_obj.__class__)).where(
+                          **{repo.Repo.table_name(wrapped_obj.__class__):
+                              {'id': wrapped_obj.id}})
+                # q = query.Query(child, record=wrapped_obj).joins(self.through)
+                # where_statement = {
+                #     self.through: {self.foreign_key: wrapped_obj.id}}
+                # return q.where(**where_statement)
 
             # define the method for the through
             def through_records_method(wrapped_obj):
@@ -156,13 +196,14 @@ class has_many(object):
                 return query.Query(through, record=wrapped_obj).where(
                     **{self.foreign_key: wrapped_obj.id})
 
-            setattr(klass, self.through,
-                    property(through_records_method))
+            if not hasattr(klass, self.through):
+                setattr(klass, self.through,
+                        property(through_records_method))
         else:
             # Don't do a join
             def child_records_method(wrapped_obj):
                 child = model_from_name(self.child_name[:-1])
-                q = query.Query(child)
+                q = query.Query(child, record=wrapped_obj)
                 where_statement = {self.foreign_key: wrapped_obj.id}
                 return q.where(**where_statement)
 
@@ -174,21 +215,27 @@ class has_one(object):
     Decorator to establish this model as the parent in a one-to-one
     relationship.
     """
-    def __init__(self, child_name, foreign_key=None):
+    def __init__(self, child_name, foreign_key=None, through=None):
         self.child_name = child_name
         self.foreign_key = foreign_key
+        self.through = through
+        if str(self.through).endswith('s'):
+            raise AssociationForbidden(
+                "Cannot have one '{}' through many '{}'".format(
+                    self.child_name,
+                    self.through,
+                ))
 
     def __call__(self, klass):
         self.foreign_key = self.foreign_key or "{name}_id".format(
             name=repo.Repo.table_name(klass)[:-1])
         klass.__dependents__ = klass.__dependents__ + [self.child_name]
         # Add the relationship to the association list
-        klass.__associations__ = dict(klass.__associations__)
-        klass.__associations__[self.child_name] = None
+        associations_for(klass)[self.child_name] = None #self.through
         # Add the foreign key to the fk list
-        klass.__foreign_keys__ = dict(klass.__foreign_keys__)
-        klass.__foreign_keys__[self.child_name] = self.foreign_key
+        foreign_keys_for(klass)[self.child_name] = self.foreign_key
         models[klass.__name__] = klass
+        # TODO Do we want to also validate the uniqueness of the child?
 
         def child_record_method(wrapped_obj):
             child = model_from_name(self.child_name)

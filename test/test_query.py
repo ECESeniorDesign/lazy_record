@@ -12,8 +12,6 @@ import query
 
 class TunaCasserole(object):
     __all_attributes__ = {"my_attr": int, "created_at": int, "updated_at":int}
-    __foreign_keys__ = {"tuna_casserole": "tuna_casserole_id"}
-    __associations__ = {"my_relations": None}
     __scopes__ = {}
 
     def __init__(self, **kwargs):
@@ -26,8 +24,7 @@ class TunaCasserole(object):
         return "mytestvalue"
 
 class MyRelations(object):
-    __foreign_keys__ = {}
-    __associations__ = {}
+    pass
 
 @mock.patch("query.Repo")
 class TestQuery(unittest.TestCase):
@@ -168,7 +165,9 @@ class TestQuery(unittest.TestCase):
         record = Query(TunaCasserole).where(my_attr=11).build(my_attr=12)
         self.assertEqual(record.my_attr, 12)
 
-    def test_unrelates_records(self, Repo):
+    @mock.patch("query.associations.foreign_keys_for")
+    def test_unrelates_records(self, fkf, Repo):
+        fkf.return_value = {'tuna_casserole': 'tuna_casserole_id'}
         Repo.table_name.return_value = "tuna_casseroles"
         t = TunaCasserole()
         t2 = TunaCasserole(tuna_casserole_id=15)
