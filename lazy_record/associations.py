@@ -24,13 +24,10 @@ def _verify_type_match(record, association):
             ))
 
 def model_has_foreign_key_for_table(table, model):
-    if table[:-1] in associations_for(model):
-        fk = foreign_keys_for(model).get(table[:-1], None)
-        if fk is None:
-            return True
-        return fk in model.__attributes__
-    else:
+    fk = foreign_keys_for(model).get(table[:-1], None)
+    if fk is None:
         return True
+    return fk in model.__attributes__
 
 def foreign_keys_for(klass):
     if type(klass) == str:
@@ -196,16 +193,6 @@ class has_many(object):
                           repo.Repo.table_name(wrapped_obj.__class__)).where(
                           **{repo.Repo.table_name(wrapped_obj.__class__):
                               {'id': wrapped_obj.id}})
-
-            # define the method for the through
-            def through_records_method(wrapped_obj):
-                through = model_from_name(self.through[:-1])
-                return query.Query(through, record=wrapped_obj).where(
-                    **{self.foreign_key: wrapped_obj.id})
-
-            if not hasattr(klass, self.through):
-                setattr(klass, self.through,
-                        property(through_records_method))
         else:
             # Don't do a join
             def child_records_method(wrapped_obj):

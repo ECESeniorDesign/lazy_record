@@ -29,7 +29,6 @@ class Lending(lazy_record.Base):
 
 @has_many("things", through="books")
 @has_many("books", through="lendings")
-@has_many("lendings")
 class Person(lazy_record.Base):
     pass
 
@@ -133,7 +132,8 @@ class TestGettingRecordsThroughJoin(unittest.TestCase):
         lazy_record.load_schema(test_schema)
         self.person = Person.create()
         self.book = Book.create()
-        Lending(person_id=self.person.id, book_id=self.book.id).save()
+        self.lending = Lending.create(person_id=self.person.id,
+                                      book_id=self.book.id)
 
     def tearDown(self):
         lazy_record.close_db()
@@ -166,6 +166,8 @@ class TestGettingRecordsThroughJoin(unittest.TestCase):
         self.assertIn(lending_table.id,
                       [l.id for l in self.book.lending_tables])
 
+    def finds_records_one_deep(self):
+        self.assertIn(self.lending, self.person.lendings)
 
 class TestBuildingRecordsThroughJoin(unittest.TestCase):
 

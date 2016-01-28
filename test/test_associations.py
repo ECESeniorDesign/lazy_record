@@ -327,5 +327,13 @@ class TestHasOneThroughMany(unittest.TestCase):
         self.assertEqual(e.exception.message,
                          "Cannot have one 'thing' through many 'test_models'")
 
+class TestFunctions(unittest.TestCase):
+
+    def test_model_has_foreign_key_for_table_when_has_foreign_key(self):
+        self.assertTrue(model_has_foreign_key_for_table("posts", Tagging))
+
+    def test_model_has_foreign_key_for_table_when_not(self):
+        self.assertFalse(model_has_foreign_key_for_table("things", TestModel))
+
 if __name__ == '__main__':
     unittest.main()

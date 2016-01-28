@@ -235,9 +235,6 @@ class Query(object):
             # which is the first time it gets an id
             # Join args will never have just one element
             next_to_build = getattr(self.record, self.join_args[-2]['table']).build()
-            # relations = (arg['table'] for arg in self.join_args)
-            # record._related_records += [build_relation(relation, build_args)
-            #                             for relation in relations]
             record._related_records.append(next_to_build)
         return record
 
@@ -380,10 +377,6 @@ def foreign_key(local, foreign):
     local_class = local.__class__
     foreign_class = foreign.__class__
     return associations.foreign_keys_for(local_class)[Repo.table_name(foreign_class)[:-1]]
-
-def build_relation(relation, build_args):
-    related_class = associations.model_from_name(relation[:-1])
-    return related_class(**build_args[relation])
 
 def record_args(arg_dict):
     return {key: value
