@@ -37,6 +37,7 @@ class Comment(Base):
     def bar(Comment):
         return "baz"
 
+@has_one("other_thang", through="thing")
 @has_one("thing")
 @belongs_to("comment")
 @belongs_to("post", foreign_key="postId")
@@ -55,13 +56,13 @@ class Tagging(Base):
 class Tag(Base):
     pass
 
-@has_one("other_thing", foreign_key="thingId")
+@has_one("other_thang", foreign_key="thingId")
 @belongs_to("test_model")
 class Thing(Base):
     pass
 
 @belongs_to("thing", foreign_key="thingId")
-class OtherThing(Base):
+class OtherThang(Base):
     pass
 
 class AnotherThing(Base):
@@ -257,28 +258,48 @@ class TestHasOne(unittest.TestCase):
         self.assertEqual(associations_for(TestModel)["thing"], None)
 
     def test_getting_using_custom_foreign_key(self, query):
-        self.thing.other_thing
-        query.Query.assert_called_with(OtherThing, record=self.thing)
+        self.thing.other_thang
+        query.Query.assert_called_with(OtherThang, record=self.thing)
         q = query.Query.return_value
         q.where.assert_called_with(thingId=17)
 
     def test_setting_child_record(self, query):
-        other_thing = OtherThing()
-        self.thing.other_thing = other_thing
-        self.assertIn(other_thing, self.thing._related_records)
-        self.assertEqual(other_thing.thingId, 17)
+        other_thang = OtherThang()
+        self.thing.other_thang = other_thang
+        self.assertIn(other_thang, self.thing._related_records)
+        self.assertEqual(other_thang.thingId, 17)
 
     def test_setting_child_raises_if_types_dont_match(self, query):
         with self.assertRaises(lazy_record.AssociationTypeMismatch):
-            self.thing.other_thing = Post()
+            self.thing.other_thang = Post()
 
     def test_adds_foreign_key(self, query):
-        self.assertIn("other_thing", foreign_keys_for(Thing))
-        self.assertEqual("thingId", foreign_keys_for(Thing)["other_thing"])
+        self.assertIn("other_thang", foreign_keys_for(Thing))
+        self.assertEqual("thingId", foreign_keys_for(Thing)["other_thang"])
+
+    def test_adds_foreign_key_to_child(self, query):
+        self.assertIn("thing", foreign_keys_for(OtherThang))
+        self.assertEqual("thingId", foreign_keys_for(OtherThang)["thing"])
 
 
+@mock.patch("lazy_record.associations.query")
 class TestHasOneThroughOne(unittest.TestCase):
-    pass
+
+    def test_joins_middle_records(self, query):
+        t = TestModel()
+        t.id = 93
+        t.other_thang
+        query.Query.assert_called_with(OtherThang, record=t)
+        q = query.Query.return_value
+        q.joins.assert_called_with("test_models")
+        j = q.joins.return_value
+        j.where.assert_called_with(test_models={"id": 93})
+        w = j.where.return_value
+        w.first.assert_called_with()
+
+    def test_adds_association_to_child(self, query):
+        self.assertIn("test_model", associations_for(OtherThang))
+        self.assertEqual("thing", associations_for(OtherThang)["test_model"])
 
 @mock.patch("lazy_record.associations.query")
 class TestHasManyThroughOne(unittest.TestCase):

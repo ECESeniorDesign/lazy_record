@@ -185,10 +185,6 @@ class has_many(object):
                           repo.Repo.table_name(wrapped_obj.__class__)).where(
                           **{repo.Repo.table_name(wrapped_obj.__class__):
                               {'id': wrapped_obj.id}})
-                # q = query.Query(child, record=wrapped_obj).joins(self.through)
-                # where_statement = {
-                #     self.through: {self.foreign_key: wrapped_obj.id}}
-                # return q.where(**where_statement)
 
             # define the method for the through
             def through_records_method(wrapped_obj):
@@ -227,27 +223,76 @@ class has_one(object):
                 ))
 
     def __call__(self, klass):
+        our_name = repo.Repo.table_name(klass)[:-1]
+        child_model_name = _model_name(self.child_name)
         self.foreign_key = self.foreign_key or "{name}_id".format(
             name=repo.Repo.table_name(klass)[:-1])
         klass.__dependents__ = klass.__dependents__ + [self.child_name]
         # Add the relationship to the association list
-        associations_for(klass)[self.child_name] = None #self.through
+        associations_for(klass)[self.child_name] = self.through
         # Add the foreign key to the fk list
         foreign_keys_for(klass)[self.child_name] = self.foreign_key
         models[klass.__name__] = klass
         # TODO Do we want to also validate the uniqueness of the child?
+        if self.through and self.through not in associations_for(child_model_name):
+            # Set up the association for the child
+            # Assume a one-many tree unless already defined otherwise
+            associations_for(child_model_name)[our_name] = self.through
 
-        def child_record_method(wrapped_obj):
-            child = model_from_name(self.child_name)
-            q = query.Query(child, record=wrapped_obj)
-            where_statement = {self.foreign_key: wrapped_obj.id}
-            return q.where(**where_statement).first()
+        if self.through:
 
-        def set_child_record_method(wrapped_obj, child):
-            _verify_type_match(child, self.child_name)
-            # We are setting a child: set its foreign key to our id
-            setattr(child, self.foreign_key, wrapped_obj.id)
-            wrapped_obj._related_records.append(child)
+            def child_record_method(wrapped_obj):
+                child = model_from_name(self.child_name)
+                return query.Query(child, record=wrapped_obj).joins(
+                          repo.Repo.table_name(wrapped_obj.__class__)).where(
+                          **{repo.Repo.table_name(wrapped_obj.__class__):
+                              {'id': wrapped_obj.id}}).first()
+
+            def set_child_record_method(wrapped_obj, new_value):
+                _verify_type_match(new_value, self.child_name)
+                child = model_from_name(self.child_name)
+                table = repo.Repo.table_name(wrapped_obj.__class__)
+                q = query.Query(child, record=wrapped_obj).joins(table
+                        ).where(**{table: {'id': wrapped_obj.id}})
+                # Get the previous value
+                old_value = q.first()
+                # Recall that join_args will have either 0 or 2 or more,
+                # never 1 element
+                joiner = q.join_args[-2]
+                # Find the intermediate record that will connect +new_value+
+                # to wrapped_obj
+                next_up = model_from_name(joiner['table'][:-1])
+                next_r = query.Query(next_up, record=wrapped_obj).joins(
+                             table).where(**{table: {'id': wrapped_obj.id}}
+                             ).first()
+                # Set the foreign key on the new value
+                # TODO what if it is a has-one -> has-one
+                #      then the foreign key would be on the joiner instead
+                setattr(new_value,
+                        joiner['on'][1], # Foreign key
+                        # Lookup the id/foreign_key of the record
+                        getattr(next_r, joiner['on'][0]))
+                wrapped_obj._related_records.append(new_value)
+                # Disassociate the old value
+                # see todo above
+                setattr(old_value,
+                        joiner['on'][1], # Foreign key
+                        None)
+                wrapped_obj._related_records.append(old_value)
+
+        else:
+
+            def child_record_method(wrapped_obj):
+                child = model_from_name(self.child_name)
+                q = query.Query(child, record=wrapped_obj)
+                where_statement = {self.foreign_key: wrapped_obj.id}
+                return q.where(**where_statement).first()
+
+            def set_child_record_method(wrapped_obj, child):
+                _verify_type_match(child, self.child_name)
+                # We are setting a child: set its foreign key to our id
+                setattr(child, self.foreign_key, wrapped_obj.id)
+                wrapped_obj._related_records.append(child)
 
         setattr(klass, self.child_name, property(child_record_method,
                                                  set_child_record_method))

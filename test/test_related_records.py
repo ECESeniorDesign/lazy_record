@@ -11,6 +11,7 @@ import lazy_record
 
 # INTEGRATED TEST
 
+@has_one("other_thing", through="thing")
 @has_one("thing")
 @has_many("lending_tables", through="lendings")
 @has_many("persons", through="lendings")
@@ -36,8 +37,13 @@ class Person(lazy_record.Base):
 class LendingTable(lazy_record.Base):
     pass
 
+@has_one("other_thing")
 @belongs_to("book")
 class Thing(lazy_record.Base):
+    pass
+
+@belongs_to("thing")
+class OtherThing(lazy_record.Base):
     pass
 
 test_schema = """
@@ -72,6 +78,13 @@ drop table if exists things;
 create table things (
   id integer primary key autoincrement,
   book_id integer,
+  created_at timestamp not null,
+  updated_at timestamp not null
+);
+drop table if exists other_things;
+create table other_things (
+  id integer primary key autoincrement,
+  thing_id integer,
   created_at timestamp not null,
   updated_at timestamp not null
 );
@@ -194,15 +207,39 @@ class TestManyThroughOne(unittest.TestCase):
         lazy_record.load_schema(test_schema)
         self.person = Person.create()
         self.book = Book.create()
+        self.lending = Lending.create(person_id=self.person.id,
+                                      book_id=self.book.id)
 
-    @unittest.skip("WIP")
-    def test_finds_one_through_many(self):
-        Lending.create(person_id=self.person.id,
-                       book_id=self.book.id)
+    def test_finds_many_through_one(self):
         thing = Thing.create(book_id=self.book.id)
-        # import pdb
-        # pdb.set_trace()
         self.assertIn(thing, self.person.things)
+
+class TestOneThroughOne(unittest.TestCase):
+
+    def setUp(self):
+        lazy_record.connect_db()
+        lazy_record.load_schema(test_schema)
+        self.book = Book.create()
+        self.thing = Thing.create(book_id=self.book.id)
+        self.other_thing = OtherThing.create(thing_id=self.thing.id)
+
+    def test_gets_record(self):
+        self.assertEqual(self.book.other_thing, self.other_thing)
+
+    def test_sets_record(self):
+        another_other_thing = OtherThing()
+        self.book.other_thing = another_other_thing
+        self.assertEqual(another_other_thing.thing_id, self.thing.id)
+        self.book.save()
+        self.assertEqual(another_other_thing, self.book.other_thing)
+
+    def test_disassociates_previous_record(self):
+        another_other_thing = OtherThing()
+        self.book.other_thing = another_other_thing
+        self.book.save()
+        # Need to reload the object to see the changes
+        other_thing = OtherThing.find(self.other_thing.id)
+        self.assertEqual(other_thing.thing_id, None)
 
 class TestAddsRecords(unittest.TestCase):
 

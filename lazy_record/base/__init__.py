@@ -178,6 +178,9 @@ class Base(Validations):
     def _finish_save(self):
         if not self.id:
             self._id = self.__id
+        for record in self._related_records:
+            if not record.id:
+                record._id = record.__id
         self._related_records = []
 
     def save(self):
