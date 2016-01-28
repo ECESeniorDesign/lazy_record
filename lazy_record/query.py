@@ -108,7 +108,6 @@ class Query(object):
                 #    ]
                 if table in associations.associations_for(model):
                     # This to next: one-many (they have the fk)
-                    # TODO what to do for one-one when they have the fk?
                     # If associations.associations_for(model)[table] is None, then this is
                     # terminal (i.e. table is the FINAL association in the
                     # chain)
@@ -120,20 +119,22 @@ class Query(object):
                         this_table_name[:-1] + "_id")
                     yield {'table': next_level, 'on': [foreign_key, 'id']}
                 else:
-                    # This to next: many-one (we have the fk)
+                    # One-One or Many-One
                     # singular table had better be in associations.associations_for(model)
-                    # TODO Check for terminality as in the if
                     next_level = associations.associations_for(model)[table[:-1]] or table[:-1]
                     next_model = associations.model_from_name(next_level)
                     this_table_name = Repo.table_name(model)
                     foreign_key = associations.foreign_keys_for(model).get(
                         next_level,
                         this_table_name[:-1] + "_id")
-                    yield {'table': next_level + 's', 'on': ['id', foreign_key]}
-                    # foreign_key = associations.foreign_keys_for(model).get(
-                    #     table, table[:-1] + "_id")
-                    # yield {'table': table, 'on': ['id', foreign_key]}
-                    # next_model = associations.model_from_name(table[:-1])
+                    if associations.model_has_foreign_key_for_table(table,
+                                                                    model):
+                        # we have the foreign key
+                        order = ['id', foreign_key]
+                    else:
+                        # They have the foreign key
+                        order = [foreign_key, 'id']
+                    yield {'table': next_level + 's', 'on': order}
                 model = next_model
 
         self.join_args = list(do_join(table, self.model))

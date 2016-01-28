@@ -46,6 +46,21 @@ class Thing(lazy_record.Base):
 class OtherThing(lazy_record.Base):
     pass
 
+@has_one("end_two", through="joiner")
+@has_one("joiner")
+class EndOne(lazy_record.Base):
+    pass
+
+@belongs_to("end_one")
+@belongs_to("end_two")
+class Joiner(lazy_record.Base):
+    pass
+
+@has_one("end_one", through="joiner")
+@has_one("joiner")
+class EndTwo(lazy_record.Base):
+    pass
+
 test_schema = """
 drop table if exists persons;
 create table persons (
@@ -88,6 +103,26 @@ create table other_things (
   created_at timestamp not null,
   updated_at timestamp not null
 );
+drop table if exists end_ones;
+create table end_ones (
+  id integer primary key autoincrement,
+  created_at timestamp not null,
+  updated_at timestamp not null
+);
+drop table if exists end_twos;
+create table end_twos (
+  id integer primary key autoincrement,
+  created_at timestamp not null,
+  updated_at timestamp not null
+);
+drop table if exists joiners;
+create table joiners (
+  id integer primary key autoincrement,
+  end_one_id integer,
+  end_two_id integer,
+  created_at timestamp not null,
+  updated_at timestamp not null
+)
 """
 
 
@@ -214,6 +249,22 @@ class TestManyThroughOne(unittest.TestCase):
         thing = Thing.create(book_id=self.book.id)
         self.assertIn(thing, self.person.things)
 
+class TestOneToOne(unittest.TestCase):
+
+    def setUp(self):
+        lazy_record.connect_db()
+        lazy_record.load_schema(test_schema)
+        self.book = Book.create()
+        self.thing = Thing.create(book_id=self.book.id)
+        self.other_thing = OtherThing.create(thing_id=self.thing.id)
+
+    def test_sets_to_none(self):
+        self.thing.other_thing = None
+        self.thing.save()
+        self.assertEqual(self.thing.other_thing, None)
+        other_thing = OtherThing.find(self.other_thing.id)
+        self.assertEqual(other_thing.thing_id, None)
+
 class TestOneThroughOne(unittest.TestCase):
 
     def setUp(self):
@@ -240,6 +291,40 @@ class TestOneThroughOne(unittest.TestCase):
         # Need to reload the object to see the changes
         other_thing = OtherThing.find(self.other_thing.id)
         self.assertEqual(other_thing.thing_id, None)
+
+    def test_sets_child_to_none(self):
+        self.book.other_thing = None
+        self.book.save()
+        # Need to reload the object to see the changes
+        other_thing = OtherThing.find(self.other_thing.id)
+        self.assertEqual(other_thing.thing_id, None)
+        self.assertEqual(self.book.other_thing, None)
+
+    def test_gets_child_no_belongs_to(self):
+        end_1 = EndOne.create()
+        end_2 = EndTwo.create()
+        joiner = Joiner.create(end_one_id=end_1.id, end_two_id=end_2.id)
+        self.assertEqual(end_1.end_two, end_2)
+        self.assertEqual(end_2.end_one, end_1)
+
+    def test_sets_child_no_belongs_to(self):
+        end_1 = EndOne.create()
+        end_2 = EndTwo.create()
+        end_2_new = EndTwo.create()
+        joiner = Joiner.create(end_one_id=end_1.id, end_two_id=end_2.id)
+        end_1.end_two = end_2_new
+        end_1.save()
+        self.assertEqual(end_1.end_two, end_2_new)
+        self.assertEqual(end_2.end_one, None)
+
+    def test_sets_child_to_none_no_belongs_to(self):
+        end_1 = EndOne.create()
+        end_2 = EndTwo.create()
+        joiner = Joiner.create(end_one_id=end_1.id, end_two_id=end_2.id)
+        end_1.end_two = None
+        end_1.save()
+        self.assertEqual(end_1.end_two, None)
+        self.assertEqual(end_2.end_one, None)
 
 class TestAddsRecords(unittest.TestCase):
 

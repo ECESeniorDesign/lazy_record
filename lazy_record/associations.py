@@ -14,12 +14,23 @@ def _model_name(parent_name):
 
 def _verify_type_match(record, association):
     associated_model = model_from_name(association)
+    if record is None:
+        return
     if not isinstance(record, associated_model):
         raise AssociationTypeMismatch(
             "Expected record of type {expected}, got {actual}.".format(
                 expected=associated_model.__name__,
                 actual=record.__class__.__name__
             ))
+
+def model_has_foreign_key_for_table(table, model):
+    if table[:-1] in associations_for(model):
+        fk = foreign_keys_for(model).get(table[:-1], None)
+        if fk is None:
+            return True
+        return fk in model.__attributes__
+    else:
+        return True
 
 def foreign_keys_for(klass):
     if type(klass) == str:
@@ -265,20 +276,32 @@ class has_one(object):
                 next_r = query.Query(next_up, record=wrapped_obj).joins(
                              table).where(**{table: {'id': wrapped_obj.id}}
                              ).first()
-                # Set the foreign key on the new value
-                # TODO what if it is a has-one -> has-one
-                #      then the foreign key would be on the joiner instead
-                setattr(new_value,
-                        joiner['on'][1], # Foreign key
-                        # Lookup the id/foreign_key of the record
-                        getattr(next_r, joiner['on'][0]))
-                wrapped_obj._related_records.append(new_value)
-                # Disassociate the old value
-                # see todo above
-                setattr(old_value,
-                        joiner['on'][1], # Foreign key
-                        None)
-                wrapped_obj._related_records.append(old_value)
+                if not model_has_foreign_key_for_table(joiner['table'],
+                                                       child):
+                    # The intermediate record has the foreign key: set it
+                    if new_value is None:
+                        setattr(next_r,
+                                joiner['on'][0],
+                                None)
+                    else:
+                        setattr(next_r,
+                                joiner['on'][0],
+                                getattr(new_value, joiner['on'][1]))
+                    wrapped_obj._related_records.append(next_r)
+                else:
+                    # Set the foreign key on the new value
+                    if new_value is not None:
+                        # Associate new value
+                        setattr(new_value,
+                                joiner['on'][1], # Foreign key
+                                # Lookup the id/foreign_key of the record
+                                getattr(next_r, joiner['on'][0]))
+                        wrapped_obj._related_records.append(new_value)
+                    # Disassociate the old value
+                    setattr(old_value,
+                            joiner['on'][1], # Foreign key
+                            None)
+                    wrapped_obj._related_records.append(old_value)
 
         else:
 
@@ -291,8 +314,13 @@ class has_one(object):
             def set_child_record_method(wrapped_obj, child):
                 _verify_type_match(child, self.child_name)
                 # We are setting a child: set its foreign key to our id
-                setattr(child, self.foreign_key, wrapped_obj.id)
-                wrapped_obj._related_records.append(child)
+                if child is not None:
+                    setattr(child, self.foreign_key, wrapped_obj.id)
+                    wrapped_obj._related_records.append(child)
+                # disassociate old record
+                old_value = child_record_method(wrapped_obj)
+                setattr(old_value, self.foreign_key, None)
+                wrapped_obj._related_records.append(old_value)
 
         setattr(klass, self.child_name, property(child_record_method,
                                                  set_child_record_method))
