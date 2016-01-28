@@ -262,15 +262,17 @@ class Query(object):
                 build_args = dict(self.where_query)
                 # The +final_join+ is what connects the record chain to the
                 # passed +record+
-                final_join = self.join_args[0]
+                final_join = self.join_args[-2]
                 # don't need to worry about one-to-many through because
                 # there is not enough information to find or create the
                 # joining record
                 # i.e. in the Forum -> Thread -> Post example
                 # forum.posts.append(post) doesn't make sense since there
                 # is no information about what thread it will be attached to
-                # Thus, this only makes sense on many-to-many with no other
-                # complications
+                # Thus, this only makes sense on many-to-many. BUT we still
+                # have to consider the case where there is a one-many-many
+                # To make that work, we need to treat this like when doing
+                # building
                 joining_relation = getattr(self.record, final_join['table'])
                 # Uses the lookup info in the join to figure out what ids to
                 # set, and where to get the id value from
