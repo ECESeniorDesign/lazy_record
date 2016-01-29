@@ -5,6 +5,7 @@ from lazy_record.errors import *
 models = {}
 associations = {}
 foreign_keys = {}
+scopes = {}
 
 def model_from_name(parent_name):
     return models[_model_name(parent_name)]
@@ -45,6 +46,10 @@ def associations_for(klass):
     associations[klass_name] = associations.get(klass_name, {})
     return associations[klass_name]
 
+def scopes_for(klass):
+    klass_name = klass.__name__
+    scopes[klass_name] = scopes.get(klass_name, {})
+    return scopes[klass_name]
 
 class belongs_to(object):
     """
@@ -148,8 +153,10 @@ class has_many(object):
         self.scope = scope
 
     def __call__(self, klass):
+        self.klass = klass
         our_name = repo.Repo.table_name(klass)[:-1]
         child_model_name = _model_name(self.child_name[:-1])
+        scopes_for(klass)[self.child_name] = self.scope
         # If we are doing an implicit has_many using through, we should define it fully
         if self.through and self.through not in associations_for(klass):
             klass = has_many(self.through)(klass)
@@ -191,20 +198,42 @@ class has_many(object):
                 # Or it could be a through that is a couple of levels down
                 # e.g. Category has many Posts through Threads
                 #      (but chain is Category -> Forum -> Thread -> Post)
-                return query.Query(child, record=wrapped_obj).joins(
-                          repo.Repo.table_name(wrapped_obj.__class__)).where(
-                          **{repo.Repo.table_name(wrapped_obj.__class__):
-                              {'id': wrapped_obj.id}})
+                result = query.Query(child, record=wrapped_obj).joins(
+                            repo.Repo.table_name(wrapped_obj.__class__)).where(
+                            **{repo.Repo.table_name(wrapped_obj.__class__):
+                            {'id': wrapped_obj.id}})
+                return self.scoping(result)
         else:
             # Don't do a join
             def child_records_method(wrapped_obj):
                 child = model_from_name(self.child_name[:-1])
                 q = query.Query(child, record=wrapped_obj)
                 where_statement = {self.foreign_key: wrapped_obj.id}
-                return self.scope(q.where(**where_statement))
+                return self.scoping(q.where(**where_statement))
 
         setattr(klass, self.child_name, property(child_records_method))
         return klass
+
+    def scoping(self, query):
+        current = self.klass
+        scopes = []
+        while True:
+            # Anything other than a has_many won't have an entry,
+            # so we return the identity scope
+            scopes.append(scopes_for(current).get(self.child_name,
+                                                  lambda query: query))
+            # Should give either a joining model or None
+            # TODO handle case for has_one
+            # currently, only has_many_supports scoping
+            joiner = associations_for(current).get(self.child_name)
+            # End of the line
+            if joiner is None:
+                break
+            # Get the next in the list by looking at the joiner model
+            current = model_from_name(joiner[:-1])
+        for scope in scopes:
+            query = scope(query)
+        return query
 
 class has_one(object):
     """
@@ -233,7 +262,6 @@ class has_one(object):
         # Add the foreign key to the fk list
         foreign_keys_for(klass)[self.child_name] = self.foreign_key
         models[klass.__name__] = klass
-        # TODO Do we want to also validate the uniqueness of the child?
         if self.through and self.through not in associations_for(child_model_name):
             # Set up the association for the child
             # Assume a one-many tree unless already defined otherwise

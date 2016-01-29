@@ -68,6 +68,12 @@ class OtherThang(Base):
 class AnotherThing(Base):
     pass
 
+@has_many("scoped_childs",
+          lambda query: query.where(year=2016),
+          through="scoping_parents")
+class DeepScopingParent(Base):
+    pass
+
 @has_many("scoped_childs", lambda query: query.where(name="foo"))
 class ScopingParent(Base):
     pass
@@ -348,6 +354,22 @@ class TestScopedAssociations(unittest.TestCase):
         w = q.where.return_value
         # Test applies scope
         w.where.assert_called_with(name="foo")
+
+    def test_applies_all_scopes_in_chain(self, query):
+        dsp = DeepScopingParent()
+        dsp.id = 56
+        dsp.scoped_childs
+        query.Query.assert_called_with(ScopedChild, record=dsp)
+        q = query.Query.return_value
+        q.joins.assert_called_with("deep_scoping_parents")
+        j = q.joins.return_value
+        j.where.assert_called_with(deep_scoping_parents={'id': 56})
+        w = j.where.return_value
+        # Test that the top level scope is applied
+        w.where.assert_called_with(year=2016)
+        s = w.where.return_value
+        # Test that the through scope is applied
+        s.where.assert_called_with(name="foo")
 
 class TestFunctions(unittest.TestCase):
 
