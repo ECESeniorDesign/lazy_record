@@ -124,7 +124,8 @@ class has_many(object):
     Decorator to establish this model as the parent in a one-to-many
     relationship or as one part of a many-to-many relationship
     """
-    def __init__(self, child_name, foreign_key=None, through=None):
+    def __init__(self, child_name, scope=lambda query: query,
+                 foreign_key=None, through=None):
         """
         +child_name+ is the child model (e.g. if a post has many comments:
         comments is the +child_name+). +foreign_key+ is the foreign key used in
@@ -144,6 +145,7 @@ class has_many(object):
         self.child_name = child_name
         self.foreign_key = foreign_key
         self.through = through
+        self.scope = scope
 
     def __call__(self, klass):
         our_name = repo.Repo.table_name(klass)[:-1]
@@ -199,7 +201,7 @@ class has_many(object):
                 child = model_from_name(self.child_name[:-1])
                 q = query.Query(child, record=wrapped_obj)
                 where_statement = {self.foreign_key: wrapped_obj.id}
-                return q.where(**where_statement)
+                return self.scope(q.where(**where_statement))
 
         setattr(klass, self.child_name, property(child_records_method))
         return klass

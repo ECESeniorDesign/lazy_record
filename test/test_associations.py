@@ -68,6 +68,14 @@ class OtherThang(Base):
 class AnotherThing(Base):
     pass
 
+@has_many("scoped_childs", lambda query: query.where(name="foo"))
+class ScopingParent(Base):
+    pass
+
+@belongs_to("scoping_parent")
+class ScopedChild(Base):
+    pass
+
 @mock.patch("lazy_record.associations.query")
 class TestBelongsTo(unittest.TestCase):
     def setUp(self):
@@ -326,6 +334,20 @@ class TestHasOneThroughMany(unittest.TestCase):
 
         self.assertEqual(e.exception.message,
                          "Cannot have one 'thing' through many 'test_models'")
+
+@mock.patch("lazy_record.associations.query")
+class TestScopedAssociations(unittest.TestCase):
+
+    def test_applies_scope(self, query):
+        scoping_parent = ScopingParent()
+        scoping_parent.id = 64
+        scoping_parent.scoped_childs
+        query.Query.assert_called_with(ScopedChild, record=scoping_parent)
+        q = query.Query.return_value
+        q.where.assert_called_once_with(scoping_parent_id=64)
+        w = q.where.return_value
+        # Test applies scope
+        w.where.assert_called_with(name="foo")
 
 class TestFunctions(unittest.TestCase):
 
