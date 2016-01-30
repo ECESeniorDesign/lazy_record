@@ -1,4 +1,4 @@
-from distutils.core import setup
+from setuptools import setup
 setup(
   name='lazy_record',
   packages=['lazy_record', 'lazy_record/base'],
@@ -10,5 +10,8 @@ setup(
   download_url='https://github.com/ECESeniorDesign/'
                'lazy_record/tarball/0.4.0',
   keywords=['flask'],
+  install_requires=[
+    'inflector',
+  ],
   classifiers=[],
 )
