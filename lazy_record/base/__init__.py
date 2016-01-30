@@ -9,6 +9,9 @@ import lazy_record.typecasts as typecasts
 from validations import Validations
 import lazy_record.associations as associations
 from itertools import chain
+from inflector import Inflector, English
+
+inflector = Inflector(English)
 
 
 class Base(Validations):
@@ -191,10 +194,11 @@ class Base(Validations):
         """
         with Repo.db:
             self._do_save()
-            our_name = Repo.table_name(self.__class__)[:-1]
+            our_name = inflector.singularize(Repo.table_name(self.__class__))
             for record in self._related_records:
                 if not self._id:
-                    related_key = associations.foreign_keys_for(record.__class__)[our_name]
+                    related_key = associations.foreign_keys_for(
+                        record.__class__)[our_name]
                     setattr(record, related_key, self.__id)
                 record._do_save()
             for record in self._delete_related_records:

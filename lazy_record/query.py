@@ -3,6 +3,9 @@ import sys
 import os
 import types
 sys.path.insert(0, os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+from inflector import Inflector, English
+
+inflector = Inflector(English)
 
 class Query(object):
     """
@@ -95,7 +98,7 @@ class Query(object):
         """
 
         def do_join(table, model):
-            while model is not associations.model_from_name(table[:-1]):
+            while model is not associations.model_from_name(table):
                 # ex) Category -> Forum -> Thread -> Post
                 # Category: {"posts": "forums"}
                 # Forum: {"posts": "threads"}
@@ -112,21 +115,22 @@ class Query(object):
                     # terminal (i.e. table is the FINAL association in the
                     # chain)
                     next_level = associations.associations_for(model)[table] or table
-                    next_model = associations.model_from_name(next_level[:-1])
-                    this_table_name = Repo.table_name(model)
-                    foreign_key = associations.foreign_keys_for(model).get(
-                        next_level,
-                        this_table_name[:-1] + "_id")
-                    yield {'table': next_level, 'on': [foreign_key, 'id']}
-                else:
-                    # One-One or Many-One
-                    # singular table had better be in associations.associations_for(model)
-                    next_level = associations.associations_for(model)[table[:-1]] or table[:-1]
                     next_model = associations.model_from_name(next_level)
                     this_table_name = Repo.table_name(model)
                     foreign_key = associations.foreign_keys_for(model).get(
                         next_level,
-                        this_table_name[:-1] + "_id")
+                        inflector.singularize(this_table_name) + "_id")
+                    yield {'table': next_level, 'on': [foreign_key, 'id']}
+                else:
+                    # One-One or Many-One
+                    # singular table had better be in associations.associations_for(model)
+                    singular = inflector.singularize(table)
+                    next_level = associations.associations_for(model)[singular] or singular
+                    next_model = associations.model_from_name(next_level)
+                    this_table_name = Repo.table_name(model)
+                    foreign_key = associations.foreign_keys_for(model).get(
+                        next_level,
+                        inflector.singularize(this_table_name) + "_id")
                     if associations.model_has_foreign_key_for_table(table,
                                                                     model):
                         # we have the foreign key
@@ -134,7 +138,7 @@ class Query(object):
                     else:
                         # They have the foreign key
                         order = [foreign_key, 'id']
-                    yield {'table': next_level + 's', 'on': order}
+                    yield {'table': inflector.pluralize(next_level), 'on': order}
                 model = next_model
 
         self.join_args = list(do_join(table, self.model))
@@ -310,7 +314,7 @@ class Query(object):
                     # +record+ does not have the foreign key
                     # Find the record one level up, then mark for destruction
                     related_class = associations.model_from_name(
-                        final_table[:-1])
+                        final_table)
                     related_record = related_class.find_by(
                         **self._related_args(record, related_class))
                     # mark the joining record to be destroyed the primary is saved
@@ -321,7 +325,8 @@ class Query(object):
                     # this is a belongs_to, so the entry will be singular,
                     # whereas the table name is plural (we need to remove the
                     # 's' at the end)
-                    key = associations.foreign_keys_for(self.model)[final_table[:-1]]
+                    key = associations.foreign_keys_for(self.model
+                            )[inflector.singularize(final_table)]
                     # Set the foreign key to None to deassociate
                     setattr(record, key, None)
             else:
@@ -338,7 +343,7 @@ class Query(object):
         # With that, we can look into the related class description for
         # the correct foreign key, which is set to the passed record's
         # id.
-        record_class_name = Repo.table_name(record.__class__)[:-1]
+        record_class_name = inflector.singularize(Repo.table_name(record.__class__))
         related_args = self.where_query.get(Repo.table_name(related_class), {})
         related_key = associations.foreign_keys_for(related_class)[record_class_name]
         related_args[related_key] = record.id
@@ -376,7 +381,8 @@ class Query(object):
 def foreign_key(local, foreign):
     local_class = local.__class__
     foreign_class = foreign.__class__
-    return associations.foreign_keys_for(local_class)[Repo.table_name(foreign_class)[:-1]]
+    return associations.foreign_keys_for(local_class
+        )[inflector.singularize(Repo.table_name(foreign_class))]
 
 def record_args(arg_dict):
     return {key: value
