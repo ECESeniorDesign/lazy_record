@@ -12,8 +12,6 @@ import query
 
 class TunaCasserole(object):
     __all_attributes__ = {"my_attr": int, "created_at": int, "updated_at":int}
-    __foreign_keys__ = {"tuna_casserole": "tuna_casserole_id"}
-    __associations__ = {"my_relations": None}
     __scopes__ = {}
 
     def __init__(self, **kwargs):
@@ -26,8 +24,7 @@ class TunaCasserole(object):
         return "mytestvalue"
 
 class MyRelations(object):
-    __foreign_keys__ = {}
-    __associations__ = {}
+    pass
 
 @mock.patch("query.Repo")
 class TestQuery(unittest.TestCase):
@@ -168,7 +165,9 @@ class TestQuery(unittest.TestCase):
         record = Query(TunaCasserole).where(my_attr=11).build(my_attr=12)
         self.assertEqual(record.my_attr, 12)
 
-    def test_unrelates_records(self, Repo):
+    @mock.patch("query.associations.foreign_keys_for")
+    def test_unrelates_records(self, fkf, Repo):
+        fkf.return_value = {'tuna_casserole': 'tuna_casserole_id'}
         Repo.table_name.return_value = "tuna_casseroles"
         t = TunaCasserole()
         t2 = TunaCasserole(tuna_casserole_id=15)
@@ -227,6 +226,25 @@ class TestQuery(unittest.TestCase):
         repo = Repo.return_value
         list(Query(TunaCasserole).select("name"))
         repo.select.assert_called_with("name")
+
+    def test_creates_invokes_build(self, Repo):
+        query = Query(TunaCasserole).where(my_attr=11)
+        query.build = mock.Mock(name="build")
+        query.create(name="foo")
+        query.build.assert_called_with(name="foo")
+
+    def test_create_saves_record(self, Repo):
+        record = mock.Mock(name="record")
+        query = Query(TunaCasserole).where(my_attr=11)
+        query.build = mock.Mock(name="build", return_value=record)
+        query.create(name="foo")
+        record.save.assert_called_with()
+
+    def test_returns_saved_record(self, Repo):
+        record = mock.Mock(name="record")
+        query = Query(TunaCasserole).where(my_attr=11)
+        query.build = mock.Mock(name="build", return_value=record)
+        self.assertEqual(query.create(name="foo"), record)
 
 if __name__ == '__main__':
     unittest.main()

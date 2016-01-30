@@ -6,17 +6,14 @@ from repo import Repo
 import datetime
 from lazy_record.errors import *
 import lazy_record.typecasts as typecasts
-import query_methods
 from validations import Validations
 import lazy_record.associations as associations
 from itertools import chain
 
 
-class Base(query_methods.QueryMethods, Validations):
+class Base(Validations):
     __attributes__ = {}
-    __foreign_keys__ = {}
     __dependents__ = []
-    __associations__ = {}
     __scopes__ = {}
 
     def __init__(self, **kwargs):
@@ -34,6 +31,25 @@ class Base(query_methods.QueryMethods, Validations):
         self.__table = Repo.table_name(self.__class__)
         self._related_records = []
         self._delete_related_records = []
+
+    @classmethod
+    def find(cls, id):
+        """
+        Find record by +id+, raising RecordNotFound if no record exists.
+        """
+        return cls.find_by(id=id)
+
+    @classmethod
+    def find_by(cls, **kwargs):
+        """
+        Find first record subject to restrictions in +kwargs+, raising
+        RecordNotFound if no such record exists.
+        """
+        result = Query(cls).where(**kwargs).first()
+        if result:
+            return result
+        else:
+            raise RecordNotFound(kwargs)
 
     def __getattr__(self, attr):
         """
@@ -83,8 +99,6 @@ class Base(query_methods.QueryMethods, Validations):
         """
         if name in ("id", "created_at", "updated_at"):
             raise AttributeError("Cannot set '{}'".format(name))
-        elif name in self.__class__.__associations__:
-            self._set_belongs_to(name, value)
         elif name in self.__class__.__attributes__:
             if value is not None:
                 setattr(self, "_" + name,
@@ -93,19 +107,6 @@ class Base(query_methods.QueryMethods, Validations):
                 setattr(self, "_" + name, None)
         else:
             super(Base, self).__setattr__(name, value)
-
-    def _set_belongs_to(self, association, record):
-        associated_model = associations.model_from_name(association)
-        if isinstance(record, associated_model):
-            setattr(self,
-                    self.__class__.__foreign_keys__[association],
-                    record.id)
-        else:
-            raise AssociationTypeMismatch(
-                "Expected record of type {expected}, got {actual}.".format(
-                    expected=associated_model.__name__,
-                    actual=record.__class__.__name__
-                ))
 
     @classmethod
     def from_dict(cls, **kwargs):
@@ -134,7 +135,7 @@ class Base(query_methods.QueryMethods, Validations):
         """
         for attr, val in kwargs.items():
             if attr in (list(self.__class__.__attributes__) + \
-                        list(self.__class__.__associations__)):
+                        list(associations.associations_for(self.__class__))):
                 setattr(self, attr, val)
 
     def delete(self):
@@ -149,7 +150,7 @@ class Base(query_methods.QueryMethods, Validations):
     def _do_destroy(self):
         Repo(self.__table).where(id=self.id).delete()
         for dependent in set(self.__class__.__dependents__):
-            for record in getattr(self, dependent):
+            for record in (getattr(self, dependent) or []):
                 record._do_destroy()
 
     def destroy(self):
@@ -177,6 +178,9 @@ class Base(query_methods.QueryMethods, Validations):
     def _finish_save(self):
         if not self.id:
             self._id = self.__id
+        for record in self._related_records:
+            if not record.id:
+                record._id = record.__id
         self._related_records = []
 
     def save(self):
@@ -190,7 +194,7 @@ class Base(query_methods.QueryMethods, Validations):
             our_name = Repo.table_name(self.__class__)[:-1]
             for record in self._related_records:
                 if not self._id:
-                    related_key = record.__class__.__foreign_keys__[our_name]
+                    related_key = associations.foreign_keys_for(record.__class__)[our_name]
                     setattr(record, related_key, self.__id)
                 record._do_save()
             for record in self._delete_related_records:
@@ -275,6 +279,8 @@ class Base(query_methods.QueryMethods, Validations):
                 # Having defined the method, look again: it will be found under
                 # normal object lookup
                 return getattr(cls, attr)
+            elif hasattr(Query(cls), attr):
+                return getattr(Query(cls), attr)
             else:
                 # The attribute is not a scope: without __getattr__ defined,
                 # the behavior would be to raise AttributeError, so that's what
