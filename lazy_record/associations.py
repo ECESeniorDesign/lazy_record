@@ -81,8 +81,7 @@ class belongs_to(object):
         2
         """
         self.parent_name = parent_name
-        self.foreign_key = foreign_key or "{name}_id".format(
-            name=self.parent_name)
+        self.foreign_key = foreign_key or inflector.foreignKey(parent_name)
 
     def __call__(self, klass):
         # Add the model to the registry of known models with associations
@@ -167,8 +166,7 @@ class has_many(object):
                 inflector.singularize(self.through)
         # if no foreign key was passed, we should calculate it now based on
         # the class name
-        self.foreign_key = self.foreign_key or "{name}_id".format(
-            name=our_name)
+        self.foreign_key = self.foreign_key or inflector.foreignKey(our_name)
         models[klass.__name__] = klass
         # Add the foreign key to the fk list
         if not self.through:
@@ -255,8 +253,7 @@ class has_one(object):
     def __call__(self, klass):
         our_name = inflector.singularize(repo.Repo.table_name(klass))
         child_model_name = inflector.classify(self.child_name)
-        self.foreign_key = self.foreign_key or "{name}_id".format(
-            name=inflector.singularize(repo.Repo.table_name(klass)))
+        self.foreign_key = self.foreign_key or inflector.foreignKey(our_name)
         klass.__dependents__ = klass.__dependents__ + [self.child_name]
         # Add the relationship to the association list
         associations_for(klass)[self.child_name] = self.through

@@ -116,10 +116,9 @@ class Query(object):
                     # chain)
                     next_level = associations.associations_for(model)[table] or table
                     next_model = associations.model_from_name(next_level)
-                    this_table_name = Repo.table_name(model)
                     foreign_key = associations.foreign_keys_for(model).get(
                         next_level,
-                        inflector.singularize(this_table_name) + "_id")
+                        inflector.foreignKey(model.__name__))
                     yield {'table': next_level, 'on': [foreign_key, 'id']}
                 else:
                     # One-One or Many-One
@@ -130,7 +129,7 @@ class Query(object):
                     this_table_name = Repo.table_name(model)
                     foreign_key = associations.foreign_keys_for(model).get(
                         next_level,
-                        inflector.singularize(this_table_name) + "_id")
+                        inflector.foreignKey(model.__name__))
                     if associations.model_has_foreign_key_for_table(table,
                                                                     model):
                         # we have the foreign key
