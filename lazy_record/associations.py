@@ -315,10 +315,11 @@ class has_one(object):
                                 getattr(next_r, joiner['on'][0]))
                         wrapped_obj._related_records.append(new_value)
                     # Disassociate the old value
-                    setattr(old_value,
-                            joiner['on'][1], # Foreign key
-                            None)
-                    wrapped_obj._related_records.append(old_value)
+                    if old_value is not None:
+                        setattr(old_value,
+                                joiner['on'][1], # Foreign key
+                                None)
+                        wrapped_obj._related_records.append(old_value)
 
         else:
 
@@ -336,8 +337,9 @@ class has_one(object):
                     wrapped_obj._related_records.append(child)
                 # disassociate old record
                 old_value = child_record_method(wrapped_obj)
-                setattr(old_value, self.foreign_key, None)
-                wrapped_obj._related_records.append(old_value)
+                if old_value is not None:
+                    setattr(old_value, self.foreign_key, None)
+                    wrapped_obj._related_records.append(old_value)
 
         setattr(klass, self.child_name, property(child_record_method,
                                                  set_child_record_method))
