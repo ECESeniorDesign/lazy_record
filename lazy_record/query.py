@@ -38,6 +38,23 @@ class Query(object):
         """
         return self
 
+    def find(self, id):
+        """
+        Find record by +id+, raising RecordNotFound if no record exists.
+        """
+        return self.find_by(id=id)
+
+    def find_by(self, **kwargs):
+        """
+        Find first record subject to restrictions in +kwargs+, raising
+        RecordNotFound if no such record exists.
+        """
+        result = self.where(**kwargs).first()
+        if result:
+            return result
+        else:
+            raise RecordNotFound(kwargs)
+
     def first(self):
         """
         Returns the first record in the query (sorting by id unless modified by

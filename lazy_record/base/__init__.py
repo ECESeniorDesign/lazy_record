@@ -35,25 +35,6 @@ class Base(Validations):
         self._related_records = []
         self._delete_related_records = []
 
-    @classmethod
-    def find(cls, id):
-        """
-        Find record by +id+, raising RecordNotFound if no record exists.
-        """
-        return cls.find_by(id=id)
-
-    @classmethod
-    def find_by(cls, **kwargs):
-        """
-        Find first record subject to restrictions in +kwargs+, raising
-        RecordNotFound if no such record exists.
-        """
-        result = Query(cls).where(**kwargs).first()
-        if result:
-            return result
-        else:
-            raise RecordNotFound(kwargs)
-
     def __getattr__(self, attr):
         """
         Get and cast +attr+ according to the __attributes__ class variable.

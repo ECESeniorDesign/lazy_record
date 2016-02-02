@@ -90,25 +90,13 @@ class TestBase(unittest.TestCase):
         MyModel.find(1)
         Query.assert_called_with(MyModel)
         query = Query.return_value
-        query.where.assert_called_with(id=1)
-        where = query.where.return_value
-        where.first.assert_called_once_with()
+        query.find.assert_called_with(1)
 
     def test_allows_finding_of_records_by_attribute(self, Query, Repo, dt):
         MyModel.find_by(name="foo")
         Query.assert_called_with(MyModel)
         query = Query.return_value
-        query.where.assert_called_with(name="foo")
-        where = query.where.return_value
-        where.first.assert_called_once_with()
-
-    def test_raises_when_find_by_finds_nothing(self, Query, Repo, datetime):
-        query = Query.return_value
-        where = query.where.return_value
-        where.first.return_value = None
-        with self.assertRaises(lazy_record.RecordNotFound) as e:
-            MyModel.find_by(name="foo")
-        self.assertEqual(e.exception.message, {'name': 'foo'})
+        query.find_by.assert_called_with(name="foo")
 
     def test_allows_searching_of_records_by_attribute(self, Query, Repo, dt):
         MyModel.where(name="foo")
