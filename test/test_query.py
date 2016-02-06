@@ -288,5 +288,45 @@ class TestQuery(unittest.TestCase):
         repo.where.assert_called_with([], name="foo")
 
 
+class TestRepeatedQueries(unittest.TestCase):
+
+    def test_where_does_not_mutate_query(self):
+        with mock.patch("query.Repo") as Repo:
+            q = Query(TunaCasserole).where(my_attr=5)
+            q.where(my_attr=3)
+            list(q)
+            repo = Repo.return_value
+            repo.where.assert_called_with([], my_attr=5)
+            repo.where.return_value.select.assert_called_with(
+                "id", "created_at", "updated_at", "my_attr")
+
+    def test_gets_last_record(self):
+        q = Query(TunaCasserole).where(my_attr=5).where(id=7)
+        with mock.patch("query.Repo") as Repo:
+            repo = Repo.return_value
+            record = q.last()
+        with mock.patch("query.Repo") as Repo:
+            repo = Repo.return_value
+            record_2 = q.first()
+            self.assertEqual({}, record_2)
+            repo.where.assert_called_with([], my_attr=5, id=7)
+            where = repo.where.return_value
+            where.order_by.assert_not_called()
+            where.select.assert_called_with(
+                "id", "created_at", "updated_at", "my_attr")
+            where.select.return_value.fetchone.assert_called_once_with()
+
+    def test_ordering_does_not_mutate(self):
+        with mock.patch("query.Repo") as Repo:
+            q = Query(TunaCasserole)
+            q.order_by(id="asc")
+            list(q.order_by(id="desc"))
+            repo = Repo.return_value
+            repo.order_by.assert_called_with(id="desc")
+            order = repo.order_by.return_value
+            order.select.assert_called_with("id", "created_at",
+                                            "updated_at", "my_attr")
+
+
 if __name__ == '__main__':
     unittest.main()
