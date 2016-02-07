@@ -251,6 +251,9 @@ class Base(Validations):
             })
             return attrs
 
+        def __len__(cls):
+            return len(Query(cls).all())
+
         def __getattr__(cls, attr):
             # Is the attr a scope?
             if attr in cls.__scopes__:

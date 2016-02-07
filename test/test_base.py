@@ -29,6 +29,15 @@ class MyOtherModel(Base):
 @mock.patch("base.Query")
 class TestBase(unittest.TestCase):
 
+    def test_gets_number_of_records(self, Query, Repo, datetime):
+        Query.return_value.all.return_value.__len__.return_value = 3
+        self.assertEqual(len(MyModel), 3)
+        Query.assert_called_with(MyModel)
+        q = Query.return_value
+        q.all.assert_called_once_with()
+        all = q.all.return_value
+        all.__len__.assert_called_once_with()
+
     def test_creates_records(self, Query, Repo, datetime):
         Repo.table_name.return_value = "my_model"
         my_record = MyModel(name="me")
