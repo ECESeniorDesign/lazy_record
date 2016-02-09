@@ -279,6 +279,20 @@ class TestHasOne(unittest.TestCase):
 
     def test_setting_child_record(self, query):
         other_thang = OtherThang()
+        other_thang2 = OtherThang()
+        self.thing.other_thang = other_thang
+        self.assertIn(other_thang, self.thing._related_records)
+        self.assertEqual(other_thang.thingId, 17)
+        query.Query.return_value.where.return_value.first.return_value = \
+            other_thang
+        self.thing.other_thang = other_thang2
+        self.assertIn(other_thang2, self.thing._related_records)
+        self.assertEqual(other_thang.thingId, None)
+        self.assertEqual(other_thang2.thingId, 17)
+
+    def test_setting_child_record_for_first_time(self, query):
+        query.Query.return_value.where.return_value.first.return_value = None
+        other_thang = OtherThang()
         self.thing.other_thang = other_thang
         self.assertIn(other_thang, self.thing._related_records)
         self.assertEqual(other_thang.thingId, 17)
