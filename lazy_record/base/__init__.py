@@ -134,8 +134,11 @@ class Base(Validations):
     def _do_destroy(self):
         Repo(self.__table).where(id=self.id).delete()
         for dependent in set(self.__class__.__dependents__):
-            for record in (getattr(self, dependent) or []):
-                record._do_destroy()
+            if dependent == inflector.singularize(dependent):
+                getattr(self, dependent)._do_destroy()
+            else:
+                for record in (getattr(self, dependent) or []):
+                    record._do_destroy()
 
     def destroy(self):
         """
