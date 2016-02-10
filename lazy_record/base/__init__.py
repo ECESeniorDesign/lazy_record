@@ -135,7 +135,9 @@ class Base(Validations):
         Repo(self.__table).where(id=self.id).delete()
         for dependent in set(self.__class__.__dependents__):
             if dependent == inflector.singularize(dependent):
-                getattr(self, dependent)._do_destroy()
+                child = getattr(self, dependent)
+                if child:
+                    child._do_destroy()
             else:
                 for record in (getattr(self, dependent) or []):
                     record._do_destroy()
