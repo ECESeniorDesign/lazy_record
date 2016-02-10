@@ -13,4 +13,4 @@ engines:
 
 ratings:
    paths:
-   - "**.py"
+   - "lazy_record/**.py"
