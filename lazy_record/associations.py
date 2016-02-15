@@ -1,6 +1,9 @@
 import query
 import repo
 from lazy_record.errors import *
+from inflector import Inflector, English
+
+inflector = Inflector(English)
 
 models = {}
 associations = {}
@@ -8,10 +11,7 @@ foreign_keys = {}
 scopes = {}
 
 def model_from_name(parent_name):
-    return models[_model_name(parent_name)]
-
-def _model_name(parent_name):
-    return "".join(name.title() for name in parent_name.split("_"))
+    return models[inflector.classify(parent_name)]
 
 def _verify_type_match(record, association):
     associated_model = model_from_name(association)
@@ -25,7 +25,7 @@ def _verify_type_match(record, association):
             ))
 
 def model_has_foreign_key_for_table(table, model):
-    fk = foreign_keys_for(model).get(table[:-1], None)
+    fk = foreign_keys_for(model).get(inflector.singularize(table), None)
     if fk is None:
         return True
     return fk in model.__attributes__
@@ -81,8 +81,7 @@ class belongs_to(object):
         2
         """
         self.parent_name = parent_name
-        self.foreign_key = foreign_key or "{name}_id".format(
-            name=self.parent_name)
+        self.foreign_key = foreign_key or inflector.foreignKey(parent_name)
 
     def __call__(self, klass):
         # Add the model to the registry of known models with associations
@@ -154,8 +153,8 @@ class has_many(object):
 
     def __call__(self, klass):
         self.klass = klass
-        our_name = repo.Repo.table_name(klass)[:-1]
-        child_model_name = _model_name(self.child_name[:-1])
+        our_name = inflector.singularize(repo.Repo.table_name(klass))
+        child_model_name = inflector.classify(self.child_name)
         scopes_for(klass)[self.child_name] = self.scope
         # If we are doing an implicit has_many using through, we should define it fully
         if self.through and self.through not in associations_for(klass):
@@ -163,11 +162,11 @@ class has_many(object):
         if self.through and self.through not in associations_for(child_model_name):
             # Set up the association for the child
             # Assume a one-many tree unless already defined otherwise
-            associations_for(child_model_name)[our_name] = self.through[:-1]
+            associations_for(child_model_name)[our_name] = \
+                inflector.singularize(self.through)
         # if no foreign key was passed, we should calculate it now based on
         # the class name
-        self.foreign_key = self.foreign_key or "{name}_id".format(
-            name=our_name)
+        self.foreign_key = self.foreign_key or inflector.foreignKey(our_name)
         models[klass.__name__] = klass
         # Add the foreign key to the fk list
         if not self.through:
@@ -192,7 +191,7 @@ class has_many(object):
 
             # Do the query with a join
             def child_records_method(wrapped_obj):
-                child = model_from_name(self.child_name[:-1])
+                child = model_from_name(self.child_name)
                 # No guarentee that self.through is the last in the chain
                 # It could be the other part of a many-to-many
                 # Or it could be a through that is a couple of levels down
@@ -206,7 +205,7 @@ class has_many(object):
         else:
             # Don't do a join
             def child_records_method(wrapped_obj):
-                child = model_from_name(self.child_name[:-1])
+                child = model_from_name(self.child_name)
                 q = query.Query(child, record=wrapped_obj)
                 where_statement = {self.foreign_key: wrapped_obj.id}
                 return self.scoping(q.where(**where_statement))
@@ -230,7 +229,7 @@ class has_many(object):
             if joiner is None:
                 break
             # Get the next in the list by looking at the joiner model
-            current = model_from_name(joiner[:-1])
+            current = model_from_name(joiner)
         for scope in scopes:
             query = scope(query)
         return query
@@ -252,10 +251,9 @@ class has_one(object):
                 ))
 
     def __call__(self, klass):
-        our_name = repo.Repo.table_name(klass)[:-1]
-        child_model_name = _model_name(self.child_name)
-        self.foreign_key = self.foreign_key or "{name}_id".format(
-            name=repo.Repo.table_name(klass)[:-1])
+        our_name = inflector.singularize(repo.Repo.table_name(klass))
+        child_model_name = inflector.classify(self.child_name)
+        self.foreign_key = self.foreign_key or inflector.foreignKey(our_name)
         klass.__dependents__ = klass.__dependents__ + [self.child_name]
         # Add the relationship to the association list
         associations_for(klass)[self.child_name] = self.through
@@ -289,7 +287,7 @@ class has_one(object):
                 joiner = q.join_args[-2]
                 # Find the intermediate record that will connect +new_value+
                 # to wrapped_obj
-                next_up = model_from_name(joiner['table'][:-1])
+                next_up = model_from_name(joiner['table'])
                 next_r = query.Query(next_up, record=wrapped_obj).joins(
                              table).where(**{table: {'id': wrapped_obj.id}}
                              ).first()

@@ -9,6 +9,9 @@ import lazy_record.typecasts as typecasts
 from validations import Validations
 import lazy_record.associations as associations
 from itertools import chain
+from inflector import Inflector, English
+
+inflector = Inflector(English)
 
 
 class Base(Validations):
@@ -31,25 +34,6 @@ class Base(Validations):
         self.__table = Repo.table_name(self.__class__)
         self._related_records = []
         self._delete_related_records = []
-
-    @classmethod
-    def find(cls, id):
-        """
-        Find record by +id+, raising RecordNotFound if no record exists.
-        """
-        return cls.find_by(id=id)
-
-    @classmethod
-    def find_by(cls, **kwargs):
-        """
-        Find first record subject to restrictions in +kwargs+, raising
-        RecordNotFound if no such record exists.
-        """
-        result = Query(cls).where(**kwargs).first()
-        if result:
-            return result
-        else:
-            raise RecordNotFound(kwargs)
 
     def __getattr__(self, attr):
         """
@@ -150,8 +134,13 @@ class Base(Validations):
     def _do_destroy(self):
         Repo(self.__table).where(id=self.id).delete()
         for dependent in set(self.__class__.__dependents__):
-            for record in (getattr(self, dependent) or []):
-                record._do_destroy()
+            if dependent == inflector.singularize(dependent):
+                child = getattr(self, dependent)
+                if child:
+                    child._do_destroy()
+            else:
+                for record in (getattr(self, dependent) or []):
+                    record._do_destroy()
 
     def destroy(self):
         """
@@ -191,10 +180,11 @@ class Base(Validations):
         """
         with Repo.db:
             self._do_save()
-            our_name = Repo.table_name(self.__class__)[:-1]
+            our_name = inflector.singularize(Repo.table_name(self.__class__))
             for record in self._related_records:
                 if not self._id:
-                    related_key = associations.foreign_keys_for(record.__class__)[our_name]
+                    related_key = associations.foreign_keys_for(
+                        record.__class__)[our_name]
                     setattr(record, related_key, self.__id)
                 record._do_save()
             for record in self._delete_related_records:
@@ -265,6 +255,9 @@ class Base(Validations):
                 "updated_at": typecasts.datetime,
             })
             return attrs
+
+        def __len__(cls):
+            return len(Query(cls).all())
 
         def __getattr__(cls, attr):
             # Is the attr a scope?

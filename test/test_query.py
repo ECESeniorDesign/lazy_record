@@ -21,7 +21,7 @@ class TunaCasserole(object):
 
     @classmethod
     def from_dict(TunaCasserole, **kwargs):
-        return "mytestvalue"
+        return kwargs
 
 class MyRelations(object):
     pass
@@ -44,11 +44,12 @@ class TestQuery(unittest.TestCase):
 
     def test_constructs_object_with_information(self, Repo):
         repo = Repo.return_value
-        fetchall_return = [{"id": 2, "my_attr": 15, "created_at": 33}]
+        fetchall_return = [(2, 33, 15)]
         fetchall = mock.Mock(return_value=fetchall_return)
         select_mock = mock.Mock(fetchall=fetchall)
         repo.select.return_value = mock.Mock(fetchall=fetchall)
-        self.assertEqual(list(Query(TunaCasserole).all())[0], "mytestvalue")
+        self.assertEqual(list(Query(TunaCasserole).all())[0],
+            {"id": 2, "updated_at": 15, "created_at": 33})
 
     def test_where_restricts_query(self, Repo):
         list(Query(TunaCasserole).where(my_attr=5))
@@ -102,7 +103,7 @@ class TestQuery(unittest.TestCase):
 
     def test_gets_first_record(self, Repo):
         record = Query(TunaCasserole).where(my_attr=5).where(id=7).first()
-        self.assertEqual("mytestvalue", record)
+        self.assertEqual({}, record)
         repo = Repo.return_value
         repo.where.assert_called_with([], my_attr=5, id=7)
         where = repo.where.return_value
@@ -119,7 +120,7 @@ class TestQuery(unittest.TestCase):
 
     def test_gets_last_record(self, Repo):
         record = Query(TunaCasserole).where(my_attr=5).where(id=7).last()
-        self.assertEqual("mytestvalue", record)
+        self.assertEqual({}, record)
         repo = Repo.return_value
         repo.where.assert_called_with([], my_attr=5, id=7)
         where = repo.where.return_value
@@ -139,7 +140,7 @@ class TestQuery(unittest.TestCase):
 
     def test_gets_last_record_with_existing_sort(self, Repo):
         r = Query(TunaCasserole).where(my_attr=5).order_by(id="desc").last()
-        self.assertEqual("mytestvalue", r)
+        self.assertEqual({}, r)
         repo = Repo.return_value
         repo.where.assert_called_with([], my_attr=5)
         where = repo.where.return_value
@@ -184,18 +185,20 @@ class TestQuery(unittest.TestCase):
         # Recall that TunaCasserole overrides #from_dict to return
         # 'mytestvalue' so that is what it will repr as
         self.assertEqual(repr(Query(TunaCasserole)),
-                         "<lazy_record.Query ['mytestvalue']>")
+                     "<lazy_record.Query [{'created_at': 7, 'id': 1, "
+                     "'updated_at': datetime.datetime(2016, 1, 1, 0, 0)}]>")
 
     def test_class_displays_as_though_it_was_in_lazy_record(self, Repo):
         self.assertEqual(repr(Query), "<class 'lazy_record.Query'>")
 
     def tests_inclusion(self, Repo):
         repo = Repo.return_value
-        fetchall_return = [{"id": 2, "my_attr": 15, "created_at": 33}]
+        fetchall_return = [(15, 2, 33)]
         fetchall = mock.Mock(return_value=fetchall_return)
         select_mock = mock.Mock(fetchall=fetchall)
         repo.select.return_value = mock.Mock(fetchall=fetchall)
-        self.assertIn("mytestvalue", Query(TunaCasserole).all())
+        self.assertIn({'created_at': 2, 'id': 15, 'updated_at': 33},
+                      Query(TunaCasserole).all())
 
     def test_len_invokes_SQL_count_function(self, Repo):
         repo = Repo.return_value
@@ -245,6 +248,85 @@ class TestQuery(unittest.TestCase):
         query = Query(TunaCasserole).where(my_attr=11)
         query.build = mock.Mock(name="build", return_value=record)
         self.assertEqual(query.create(name="foo"), record)
+
+    def test_find_records_when_exists(self, Repo):
+        repo = Repo.return_value
+        fetchone_return = {"id": 5, "my_attr": 15, "created_at": 33}
+        fetchone = mock.Mock(return_value=fetchone_return)
+        repo.where.return_value.select.return_value = mock.Mock(
+            fetchone=fetchone)
+        Query(TunaCasserole).find(5)
+        repo.where.assert_called_with([], id=5)
+
+    def test_find_raises_when_no_record(self, Repo):
+        repo = Repo.return_value
+        fetchone_return = None
+        fetchone = mock.Mock(return_value=fetchone_return)
+        repo.where.return_value.select.return_value = mock.Mock(
+            fetchone=fetchone)
+        with self.assertRaises(query.RecordNotFound):
+            Query(TunaCasserole).find(5)
+        repo.where.assert_called_with([], id=5)
+
+    def test_allows_finding_of_records_by_attribute(self, Repo):
+        repo = Repo.return_value
+        fetchone_return = {"id": 5, "my_attr": 15, "created_at": 33}
+        fetchone = mock.Mock(return_value=fetchone_return)
+        repo.where.return_value.select.return_value = mock.Mock(
+            fetchone=fetchone)
+        Query(TunaCasserole).find_by(name="foo")
+        repo.where.assert_called_with([], name="foo")
+
+    def test_raises_when_find_by_finds_nothing(self, Repo):
+        repo = Repo.return_value
+        fetchone_return = None
+        fetchone = mock.Mock(return_value=fetchone_return)
+        repo.where.return_value.select.return_value = mock.Mock(
+            fetchone=fetchone)
+        with self.assertRaises(query.RecordNotFound):
+            Query(TunaCasserole).find_by(name="foo")
+        repo.where.assert_called_with([], name="foo")
+
+
+class TestRepeatedQueries(unittest.TestCase):
+
+    def test_where_does_not_mutate_query(self):
+        with mock.patch("query.Repo") as Repo:
+            q = Query(TunaCasserole).where(my_attr=5)
+            q.where(my_attr=3)
+            list(q)
+            repo = Repo.return_value
+            repo.where.assert_called_with([], my_attr=5)
+            repo.where.return_value.select.assert_called_with(
+                "id", "created_at", "updated_at", "my_attr")
+
+    def test_gets_last_record(self):
+        q = Query(TunaCasserole).where(my_attr=5).where(id=7)
+        with mock.patch("query.Repo") as Repo:
+            repo = Repo.return_value
+            record = q.last()
+        with mock.patch("query.Repo") as Repo:
+            repo = Repo.return_value
+            record_2 = q.first()
+            self.assertEqual({}, record_2)
+            repo.where.assert_called_with([], my_attr=5, id=7)
+            where = repo.where.return_value
+            where.order_by.assert_not_called()
+            where.select.assert_called_with(
+                "id", "created_at", "updated_at", "my_attr")
+            where.select.return_value.fetchone.assert_called_once_with()
+
+    def test_ordering_does_not_mutate(self):
+        with mock.patch("query.Repo") as Repo:
+            q = Query(TunaCasserole)
+            q.order_by(id="asc")
+            list(q.order_by(id="desc"))
+            repo = Repo.return_value
+            repo.order_by.assert_called_with(id="desc")
+            order = repo.order_by.return_value
+            order.select.assert_called_with("id", "created_at",
+                                            "updated_at", "my_attr")
+
 
 if __name__ == '__main__':
     unittest.main()

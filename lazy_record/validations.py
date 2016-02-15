@@ -14,8 +14,6 @@ class validation(object):
 
 @validation
 def present(record, name):
-    if getattr(record, name) is 0:
-        return True
     return bool(getattr(record, name))
 
 @validation

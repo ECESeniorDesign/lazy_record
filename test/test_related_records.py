@@ -14,7 +14,7 @@ import lazy_record
 @has_one("other_thing", through="thing")
 @has_one("thing")
 @has_many("lending_tables", through="lendings")
-@has_many("persons", through="lendings")
+@has_many("people", through="lendings")
 @has_many("lendings")
 class Book(lazy_record.Base):
     pass
@@ -61,8 +61,8 @@ class EndTwo(lazy_record.Base):
     pass
 
 test_schema = """
-drop table if exists persons;
-create table persons (
+drop table if exists people;
+create table people (
   id integer primary key autoincrement,
   created_at timestamp not null,
   updated_at timestamp not null
@@ -184,7 +184,7 @@ class TestBuildingRecordsThroughJoin(unittest.TestCase):
         book = self.person.books.build()
         book.save()
         assert (book.id in [b.id for b in self.person.books])
-        assert (self.person.id in [p.id for p in book.persons])
+        assert (self.person.id in [p.id for p in book.people])
 
 
 class TestDestroyingRecordsThroughJoin(unittest.TestCase):
@@ -346,13 +346,13 @@ class TestAddsRecords(unittest.TestCase):
         self.book.lendings.append(lending)
         self.book.save()
         assert (self.book.id in [b.id for b in self.person.books])
-        assert (self.person.id in [p.id for p in self.book.persons])
+        assert (self.person.id in [p.id for p in self.book.people])
 
     def test_adds_intermediaries(self):
         self.person.books.append(self.book)
         self.person.save()
         assert (self.book.id in [b.id for b in self.person.books])
-        assert (self.person.id in [p.id for p in self.book.persons])
+        assert (self.person.id in [p.id for p in self.book.people])
 
     def test_raises_AssociationTypeMismatch_not_correct_type(self):
         with self.assertRaises(lazy_record.AssociationTypeMismatch) as e:

@@ -16,7 +16,6 @@ class TestValidations(unittest.TestCase):
         validator.name = "age"
         self.assertTrue(validator(mock.Mock(age="me")))
         self.assertTrue(validator(mock.Mock(age=17)))
-        self.assertTrue(validator(mock.Mock(age=0)))
         self.assertTrue(validator(mock.Mock(age=True)))
 
     def test_validates_presence_when_not_present(self):
@@ -30,7 +29,6 @@ class TestValidations(unittest.TestCase):
         validator = validations.absent
         validator.name = "age"
         self.assertFalse(validator(mock.Mock(age=17)))
-        self.assertFalse(validator(mock.Mock(age=0)))
         self.assertFalse(validator(mock.Mock(age=True)))
 
     def test_validates_absence_when_not_present(self):

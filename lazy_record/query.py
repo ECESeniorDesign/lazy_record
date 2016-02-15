@@ -3,6 +3,18 @@ import sys
 import os
 import types
 sys.path.insert(0, os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+from inflector import Inflector, English
+
+inflector = Inflector(English)
+
+def does_not_mutate(func):
+    """Prevents methods from mutating the receiver"""
+    def wrapper(self, *args, **kwargs):
+        new = self.copy()
+        return func(new, *args, **kwargs)
+    wrapper.__name__ = func.__name__
+    wrapper.__doc__ = func.__doc__
+    return wrapper
 
 class Query(object):
     """
@@ -29,11 +41,39 @@ class Query(object):
         self.attributes = ["id"] + list(self.model.__all_attributes__)
         self.table = Repo.table_name(self.model)
 
+    def copy(self):
+        q = Query(self.model, self.record)
+        q.where_query = dict(self.where_query)
+        q.custom_where = list(self.custom_where)
+        q.having_args = list(self.having_args)
+        q.join_args = list(self.join_args)
+        q._order_with = dict(self._order_with)
+        q.group_column = self.group_column
+        q.attributes = list(self.attributes)
+        return q
+
     def all(self):
         """
         Returns all records that match the query.
         """
         return self
+
+    def find(self, id):
+        """
+        Find record by +id+, raising RecordNotFound if no record exists.
+        """
+        return self.find_by(id=id)
+
+    def find_by(self, **kwargs):
+        """
+        Find first record subject to restrictions in +kwargs+, raising
+        RecordNotFound if no such record exists.
+        """
+        result = self.where(**kwargs).first()
+        if result:
+            return result
+        else:
+            raise RecordNotFound(kwargs)
 
     def first(self):
         """
@@ -46,6 +86,7 @@ class Query(object):
         args = dict(zip(self.attributes, record))
         return self.model.from_dict(**args)
 
+    @does_not_mutate
     def last(self):
         """
         Returns the last record in the query (sorting by id unless modified by
@@ -56,13 +97,14 @@ class Query(object):
             order = self._order_with.values()[0]
             order = "desc" if order == "asc" else "asc"
             order_with = self._order_with
-            self._order_with = None
+            self._order_with = {}
             result = self.order_by(**{order_with.keys()[0]: order}).first()
             self._order_with = order_with
             return result
         else:
             return self.order_by(id="desc").first()
 
+    @does_not_mutate
     def order_by(self, **kwargs):
         """
         Orders the query by the key passed in +kwargs+. Only pass one key, as
@@ -76,6 +118,7 @@ class Query(object):
         self._order_with = dict([kwargs.popitem()])
         return self
 
+    @does_not_mutate
     def where(self, *custom_restrictions, **restrictions):
         """
         Restricts the records to the query subject to the passed
@@ -88,6 +131,7 @@ class Query(object):
             self.custom_where.append(tuple(custom_restrictions))
         return self
 
+    @does_not_mutate
     def joins(self, table):
         """
         Analog to "INNER JOIN" in SQL on the passed +table+. Use only once
@@ -95,7 +139,7 @@ class Query(object):
         """
 
         def do_join(table, model):
-            while model is not associations.model_from_name(table[:-1]):
+            while model is not associations.model_from_name(table):
                 # ex) Category -> Forum -> Thread -> Post
                 # Category: {"posts": "forums"}
                 # Forum: {"posts": "threads"}
@@ -112,21 +156,21 @@ class Query(object):
                     # terminal (i.e. table is the FINAL association in the
                     # chain)
                     next_level = associations.associations_for(model)[table] or table
-                    next_model = associations.model_from_name(next_level[:-1])
-                    this_table_name = Repo.table_name(model)
+                    next_model = associations.model_from_name(next_level)
                     foreign_key = associations.foreign_keys_for(model).get(
                         next_level,
-                        this_table_name[:-1] + "_id")
+                        inflector.foreignKey(model.__name__))
                     yield {'table': next_level, 'on': [foreign_key, 'id']}
                 else:
                     # One-One or Many-One
                     # singular table had better be in associations.associations_for(model)
-                    next_level = associations.associations_for(model)[table[:-1]] or table[:-1]
+                    singular = inflector.singularize(table)
+                    next_level = associations.associations_for(model)[singular] or singular
                     next_model = associations.model_from_name(next_level)
                     this_table_name = Repo.table_name(model)
                     foreign_key = associations.foreign_keys_for(model).get(
                         next_level,
-                        this_table_name[:-1] + "_id")
+                        inflector.foreignKey(model.__name__))
                     if associations.model_has_foreign_key_for_table(table,
                                                                     model):
                         # we have the foreign key
@@ -134,12 +178,13 @@ class Query(object):
                     else:
                         # They have the foreign key
                         order = [foreign_key, 'id']
-                    yield {'table': next_level + 's', 'on': order}
+                    yield {'table': inflector.pluralize(next_level), 'on': order}
                 model = next_model
 
         self.join_args = list(do_join(table, self.model))
         return self
 
+    @does_not_mutate
     def group(self, column):
         """
         Applies a `GROUP BY` clause to the SQL generated by the Repo.
@@ -147,6 +192,7 @@ class Query(object):
         self.group_column = column
         return self
 
+    @does_not_mutate
     def having(self, *conditions):
         """
         SQL uses the `HAVING` clause to specify conditions on the `GROUP BY`
@@ -158,6 +204,7 @@ class Query(object):
         self.having_args.append(tuple(conditions))
         return self
 
+    @does_not_mutate
     def select(self, *fields):
         """
         Limit the number of fields accessed by SQL to those passed in
@@ -310,7 +357,7 @@ class Query(object):
                     # +record+ does not have the foreign key
                     # Find the record one level up, then mark for destruction
                     related_class = associations.model_from_name(
-                        final_table[:-1])
+                        final_table)
                     related_record = related_class.find_by(
                         **self._related_args(record, related_class))
                     # mark the joining record to be destroyed the primary is saved
@@ -321,7 +368,8 @@ class Query(object):
                     # this is a belongs_to, so the entry will be singular,
                     # whereas the table name is plural (we need to remove the
                     # 's' at the end)
-                    key = associations.foreign_keys_for(self.model)[final_table[:-1]]
+                    key = associations.foreign_keys_for(self.model
+                            )[inflector.singularize(final_table)]
                     # Set the foreign key to None to deassociate
                     setattr(record, key, None)
             else:
@@ -338,7 +386,7 @@ class Query(object):
         # With that, we can look into the related class description for
         # the correct foreign key, which is set to the passed record's
         # id.
-        record_class_name = Repo.table_name(record.__class__)[:-1]
+        record_class_name = inflector.singularize(Repo.table_name(record.__class__))
         related_args = self.where_query.get(Repo.table_name(related_class), {})
         related_key = associations.foreign_keys_for(related_class)[record_class_name]
         related_args[related_key] = record.id
@@ -376,7 +424,8 @@ class Query(object):
 def foreign_key(local, foreign):
     local_class = local.__class__
     foreign_class = foreign.__class__
-    return associations.foreign_keys_for(local_class)[Repo.table_name(foreign_class)[:-1]]
+    return associations.foreign_keys_for(local_class
+        )[inflector.singularize(Repo.table_name(foreign_class))]
 
 def record_args(arg_dict):
     return {key: value

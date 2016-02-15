@@ -1,6 +1,9 @@
 import re
 import sqlite3
 from itertools import chain
+from inflector import Inflector, English
+
+inflector = Inflector(English)
 
 
 class Invalid(Exception):
@@ -268,9 +271,7 @@ class Repo(object):
         """
         Get a model's table name. (e.g. MyModel => "my_models")
         """
-        underscore_regex = re.compile(
-            '((?<=[a-z0-9])[A-Z]|(?!^)[A-Z](?=[a-z]))')
-        return underscore_regex.sub(r'_\1', model.__name__).lower() + "s"
+        return inflector.tableize(model.__name__)
 
     @classmethod
     def connect_db(Repo, database=":memory:"):

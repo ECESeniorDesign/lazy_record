@@ -10,7 +10,10 @@ class Validations(object):
         Returns True if valid, and False if any validations fail. If passed
         (as a dict), +attrs+ will be populated with the invalid attributes.
         """
-        reason = attrs or {}
+        if attrs is None:
+            reason = {}
+        else:
+            reason = attrs
         valid = True
         for attr, validation in self.__class__.__validates__.items():
             if validation.__class__ == validators.validation:
