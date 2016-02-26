@@ -156,7 +156,7 @@ class Base(Validations):
         self._updated_at = datetime.datetime.today()
         if self.id:
             attrs = list(self.__class__.__all_attributes__)
-            data = {attr: getattr(self, attr) for attr in attrs}
+            data = {attr: getattr(self, "_" + attr) for attr in attrs}
             Repo(self.__table).where(id=self.id).update(**data)
         else:
             attrs = list(self.__class__.__all_attributes__)
