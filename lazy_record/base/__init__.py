@@ -161,7 +161,7 @@ class Base(Validations):
         else:
             attrs = list(self.__class__.__all_attributes__)
             self._created_at = datetime.datetime.today()
-            data = {attr: getattr(self, attr) for attr in attrs}
+            data = {attr: getattr(self, "_" + attr) for attr in attrs}
             self.__id = int(Repo(self.__table).insert(**data))
 
     def _finish_save(self):
