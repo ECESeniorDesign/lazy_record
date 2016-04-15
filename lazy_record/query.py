@@ -38,6 +38,7 @@ class Query(object):
         self.join_args = []
         self._order_with = {}
         self.group_column = None
+        self.limit_count = None
         self.attributes = ["id"] + list(self.model.__all_attributes__)
         self.table = Repo.table_name(self.model)
 
@@ -75,19 +76,26 @@ class Query(object):
         else:
             raise RecordNotFound(kwargs)
 
-    def first(self):
+    @does_not_mutate
+    def first(self, count=1):
         """
         Returns the first record in the query (sorting by id unless modified by
         `order_by`), returning None if the query has no records.
         """
-        record = self._do_query().fetchone()
-        if not record:
+        if count == 0:
+            raise QueryInvalid("Count cannot be zero.")
+        self.limit_count = count
+        records = self._do_query().fetchall()
+        if not records:
             return None
-        args = dict(zip(self.attributes, record))
-        return self.model.from_dict(**args)
+        if count == 1:
+            record = records[0]
+            args = dict(zip(self.attributes, record))
+            return self.model.from_dict(**args)
+        return self
 
     @does_not_mutate
-    def last(self):
+    def last(self, count=1):
         """
         Returns the last record in the query (sorting by id unless modified by
         `order_by`, whereupon it reverses the order passed in `order_by`).
@@ -98,11 +106,11 @@ class Query(object):
             order = "desc" if order == "asc" else "asc"
             order_with = self._order_with
             self._order_with = {}
-            result = self.order_by(**{order_with.keys()[0]: order}).first()
+            result = self.order_by(**{order_with.keys()[0]: order}).first(count)
             self._order_with = order_with
             return result
         else:
-            return self.order_by(id="desc").first()
+            return self.order_by(id="desc").first(count)
 
     @does_not_mutate
     def order_by(self, **kwargs):
@@ -225,6 +233,8 @@ class Query(object):
             repo = repo.group_by(self.group_column)
         if self.having_args:
             repo = repo.having(self.having_args)
+        if self.limit_count:
+            repo = repo.limit(self.limit_count)
         return repo
 
     def _do_query(self):

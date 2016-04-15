@@ -107,16 +107,39 @@ class TestQuery(unittest.TestCase):
         repo = Repo.return_value
         repo.where.assert_called_with([], my_attr=5, id=7)
         where = repo.where.return_value
-        where.select.assert_called_with(
+        where.limit.assert_called_with(1)
+        limit = where.limit.return_value
+        limit.select.assert_called_with(
             "id", "created_at", "updated_at", "my_attr")
-        where.select.return_value.fetchone.assert_called_once_with()
+        select = limit.select.return_value
+        select.fetchall.assert_called_once_with()
 
     def test_first_returns_None_if_no_first_record(self, Repo):
         repo = Repo.return_value
         where = repo.where.return_value
-        where.select.return_value.fetchone.return_value = None
+        where.limit.return_value.select.return_value.fetchall.return_value = []
         record = Query(TunaCasserole).where(my_attr=5).where(id=7).first()
         self.assertEqual(None, record)
+
+    def test_first_gets_first_few_records(self, Repo):
+        records = Query(TunaCasserole).where(my_attr=5).where(id=7).first(5)
+        repo = Repo.return_value
+        repo.where.assert_called_with([], my_attr=5, id=7)
+        where = repo.where.return_value
+        where.limit.assert_called_with(5)
+        limit = where.limit.return_value
+        limit.select.assert_called_with(
+            "id", "created_at", "updated_at", "my_attr")
+        select = limit.select.return_value
+        select.fetchall.assert_called_once_with()
+
+    def test_first_raises_if_count_is_zero(self, Repo):
+        with self.assertRaises(query.QueryInvalid):
+            Query(TunaCasserole).where(my_attr=5).where(id=7).first(0)
+
+    def test_last_raises_if_count_is_zero(self, Repo):
+        with self.assertRaises(query.QueryInvalid):
+            Query(TunaCasserole).where(my_attr=5).where(id=7).last(0)
 
     def test_gets_last_record(self, Repo):
         record = Query(TunaCasserole).where(my_attr=5).where(id=7).last()
@@ -126,15 +149,34 @@ class TestQuery(unittest.TestCase):
         where = repo.where.return_value
         where.order_by.assert_called_with(id="desc")
         order = where.order_by.return_value
-        order.select.assert_called_with(
+        order.limit.assert_called_with(1)
+        limit = order.limit.return_value
+        limit.select.assert_called_with(
             "id", "created_at", "updated_at", "my_attr")
-        order.select.return_value.fetchone.assert_called_once_with()
+        select = limit.select.return_value
+        select.fetchall.assert_called_once_with()
+
+    def test_last_gets_last_few_records(self, Repo):
+        record = Query(TunaCasserole).where(my_attr=5).where(id=7).last(5)
+        repo = Repo.return_value
+        repo.where.assert_called_with([], my_attr=5, id=7)
+        where = repo.where.return_value
+        where.order_by.assert_called_with(id="desc")
+        order = where.order_by.return_value
+        order.limit.assert_called_with(5)
+        limit = order.limit.return_value
+        limit.select.assert_called_with(
+            "id", "created_at", "updated_at", "my_attr")
+        select = limit.select.return_value
+        select.fetchall.assert_called_once_with()
 
     def test_last_returns_None_if_no_last_record(self, Repo):
         repo = Repo.return_value
         where = repo.where.return_value
         order = where.order_by.return_value
-        order.select.return_value.fetchone.return_value = None
+        limit = order.limit.return_value
+        select = limit.select.return_value
+        select.fetchall.return_value = []
         record = Query(TunaCasserole).where(my_attr=5).where(id=7).last()
         self.assertEqual(None, record)
 
@@ -146,15 +188,20 @@ class TestQuery(unittest.TestCase):
         where = repo.where.return_value
         where.order_by.assert_called_with(id="asc")
         order = where.order_by.return_value
-        order.select.assert_called_with(
+        order.limit.assert_called_with(1)
+        limit = order.limit.return_value
+        limit.select.assert_called_with(
             "id", "created_at", "updated_at", "my_attr")
-        order.select.return_value.fetchone.assert_called_once_with()
+        select = limit.select.return_value
+        select.fetchall.assert_called_once_with()
 
     def test_gets_last_record_with_existing_sort_with_no_record(self, Repo):
         repo = Repo.return_value
         where = repo.where.return_value
         order = where.order_by.return_value
-        order.select.return_value.fetchone.return_value = None
+        limit = order.limit.return_value
+        select = limit.select.return_value
+        select.fetchall.return_value = []
         r = Query(TunaCasserole).where(my_attr=5).order_by(id="desc").last()
         self.assertEqual(None, r)
 
@@ -252,18 +299,17 @@ class TestQuery(unittest.TestCase):
     def test_find_records_when_exists(self, Repo):
         repo = Repo.return_value
         fetchone_return = {"id": 5, "my_attr": 15, "created_at": 33}
-        fetchone = mock.Mock(return_value=fetchone_return)
-        repo.where.return_value.select.return_value = mock.Mock(
-            fetchone=fetchone)
+        fetchall = mock.Mock(return_value=[fetchone_return])
+        repo.where.return_value.limit.return_value.select.return_value = mock.Mock(
+            fetchall=fetchall)
         Query(TunaCasserole).find(5)
         repo.where.assert_called_with([], id=5)
 
     def test_find_raises_when_no_record(self, Repo):
         repo = Repo.return_value
-        fetchone_return = None
-        fetchone = mock.Mock(return_value=fetchone_return)
+        fetchall = mock.Mock(return_value=[])
         repo.where.return_value.select.return_value = mock.Mock(
-            fetchone=fetchone)
+            fetchall=fetchall)
         with self.assertRaises(query.RecordNotFound):
             Query(TunaCasserole).find(5)
         repo.where.assert_called_with([], id=5)
@@ -271,18 +317,17 @@ class TestQuery(unittest.TestCase):
     def test_allows_finding_of_records_by_attribute(self, Repo):
         repo = Repo.return_value
         fetchone_return = {"id": 5, "my_attr": 15, "created_at": 33}
-        fetchone = mock.Mock(return_value=fetchone_return)
-        repo.where.return_value.select.return_value = mock.Mock(
-            fetchone=fetchone)
+        fetchall = mock.Mock(return_value=[fetchone_return])
+        repo.where.return_value.limit.return_value.select.return_value = mock.Mock(
+            fetchall=fetchall)
         Query(TunaCasserole).find_by(name="foo")
         repo.where.assert_called_with([], name="foo")
 
     def test_raises_when_find_by_finds_nothing(self, Repo):
         repo = Repo.return_value
-        fetchone_return = None
-        fetchone = mock.Mock(return_value=fetchone_return)
-        repo.where.return_value.select.return_value = mock.Mock(
-            fetchone=fetchone)
+        fetchall = mock.Mock(return_value=[])
+        repo.where.return_value.limit.return_value.select.return_value = mock.Mock(
+            fetchall=fetchall)
         with self.assertRaises(query.RecordNotFound):
             Query(TunaCasserole).find_by(name="foo")
         repo.where.assert_called_with([], name="foo")
@@ -312,9 +357,11 @@ class TestRepeatedQueries(unittest.TestCase):
             repo.where.assert_called_with([], my_attr=5, id=7)
             where = repo.where.return_value
             where.order_by.assert_not_called()
-            where.select.assert_called_with(
+            where.limit.assert_called_with(1)
+            limit = where.limit.return_value
+            limit.select.assert_called_with(
                 "id", "created_at", "updated_at", "my_attr")
-            where.select.return_value.fetchone.assert_called_once_with()
+            limit.select.return_value.fetchall.assert_called_once_with()
 
     def test_ordering_does_not_mutate(self):
         with mock.patch("query.Repo") as Repo:

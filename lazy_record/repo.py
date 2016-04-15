@@ -29,6 +29,7 @@ class Repo(object):
         self.group_clause = ""
         self.having_clause = ""
         self.having_values = []
+        self.limit_value = []
 
     def where(self, custom_restrictions=[], **restrictions):
         """
@@ -166,6 +167,13 @@ class Repo(object):
             query=" and ".join(names))
         return self
 
+    def limit(self, count):
+        """Limit number of returned rows."""
+        if count == 0:
+            raise Invalid("Cannot limit to 0 records.")
+        self.limit_value = [count]
+        return self
+
     @property
     def join_clause(self):
         # Internal use only, but the API should be stable, except for when we
@@ -178,6 +186,13 @@ class Repo(object):
                    local_table=inner_join[0][0],
                    local_on=inner_join[0][1],
                ) for inner_join in self.inner_joins)
+
+    @property
+    def limit_clause(self):
+        if self.limit_value != []:
+            return "LIMIT ? "
+        else:
+            return ""
 
     def select(self, *attributes):
         """
@@ -195,7 +210,7 @@ class Repo(object):
         ]
         cmd = ('select {attrs} from {table} '
                '{join_clause}{where_clause}{order_clause}'
-               '{group_clause}{having_clause}').format(
+               '{group_clause}{having_clause}{limit_clause}').format(
             table=self.table_name,
             attrs=", ".join(namespaced_attributes),
             where_clause=self.where_clause,
@@ -203,8 +218,10 @@ class Repo(object):
             order_clause=self.order_clause,
             group_clause=self.group_clause,
             having_clause=self.having_clause,
+            limit_clause=self.limit_clause,
         ).rstrip()
-        return Repo.db.execute(cmd, self.where_values + self.having_values)
+        return Repo.db.execute(cmd, self.where_values + self.having_values + \
+                               self.limit_value)
 
     def count(self):
         """

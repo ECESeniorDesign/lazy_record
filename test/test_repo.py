@@ -229,5 +229,19 @@ class TestRepo(unittest.TestCase):
             "GROUP BY name "
             "HAVING sum(value) > ?", [87, 11])
 
+    def test_limit_limits_number_of_returned_objects(self, db):
+        Repo("tuna_casseroles").where(id=87
+                              ).limit(10).select("*")
+        db.execute.assert_called_once_with(
+            "select tuna_casseroles.* from tuna_casseroles "
+            "where tuna_casseroles.id == ? "
+            "LIMIT ?", [87, 10]
+        )
+
+    def test_limit_errors_if_limit_is_zero(self, db):
+        with self.assertRaises(repo.Invalid):
+            Repo("tuna_casseroles").where(id=87
+                                  ).limit(0).select("*")
+
 if __name__ == '__main__':
     unittest.main()
