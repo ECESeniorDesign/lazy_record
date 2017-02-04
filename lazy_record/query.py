@@ -18,7 +18,11 @@ def does_not_mutate(func):
     wrapper.__doc__ = func.__doc__
     return wrapper
 
-class Query(object):
+class QueryMetaclass(type):
+    def __repr__(self):
+        return "<class 'lazy_record.Query'>"
+
+class Query(object, metaclass=QueryMetaclass):
     """
     Generic Query object used for searching a database for records, and
     constructing records using the returned values from the database.
@@ -41,7 +45,7 @@ class Query(object):
         self._order_with = {}
         self.group_column = None
         self.limit_count = None
-        self.attributes = ["id"] + list(self.model.__all_attributes__)
+        self.attributes = ["id"] + sorted(list(self.model.__all_attributes__))
         self.table = Repo.table_name(self.model)
 
     def copy(self):
@@ -104,11 +108,11 @@ class Query(object):
         Returns None if the query has no records.
         """
         if self._order_with:
-            order = self._order_with.values()[0]
+            order_key, order = next(iter(self._order_with.items()))
             order = "desc" if order == "asc" else "asc"
             order_with = self._order_with
             self._order_with = {}
-            result = self.order_by(**{order_with.keys()[0]: order}).first(count)
+            result = self.order_by(**{order_key: order}).first(count)
             self._order_with = order_with
             return result
         else:

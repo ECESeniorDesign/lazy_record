@@ -36,45 +36,45 @@ class TestQuery(unittest.TestCase):
         Repo.table_name.return_value = "tuna_casseroles"
         list(Query(TunaCasserole).all())
         repo = Repo.return_value
-        repo.select.assert_called_with("id", "created_at",
-                                       "updated_at", "my_attr")
+        repo.select.assert_called_with(
+            "id", "created_at", "my_attr", "updated_at")
 
     def test_constructs_object_with_information(self, Repo):
         repo = Repo.return_value
-        fetchall_return = [(2, 33, 15)]
+        fetchall_return = [(2, 33, 11, 15)]
         fetchall = mock.Mock(return_value=fetchall_return)
         select_mock = mock.Mock(fetchall=fetchall)
         repo.select.return_value = mock.Mock(fetchall=fetchall)
         self.assertEqual(list(Query(TunaCasserole).all())[0],
-            {"id": 2, "updated_at": 15, "created_at": 33})
+            {"id": 2, "updated_at": 15, "created_at": 33, "my_attr": 11})
 
     def test_where_restricts_query(self, Repo):
         list(Query(TunaCasserole).where(my_attr=5))
         repo = Repo.return_value
         repo.where.assert_called_with([], my_attr=5)
         repo.where.return_value.select.assert_called_with(
-            "id", "created_at", "updated_at", "my_attr")
+            "id", "created_at", "my_attr", "updated_at")
 
     def test_where_allows_all_after(self, Repo):
         list(Query(TunaCasserole).where(my_attr=5).all())
         repo = Repo.return_value
         repo.where.assert_called_with([], my_attr=5)
         repo.where.return_value.select.assert_called_with(
-            "id", "created_at", "updated_at", "my_attr")
+            "id", "created_at", "my_attr", "updated_at")
 
     def test_where_allows_chaining(self, Repo):
         list(Query(TunaCasserole).where(my_attr=5).where(id=7))
         repo = Repo.return_value
         repo.where.assert_called_with([], my_attr=5, id=7)
         repo.where.return_value.select.assert_called_with(
-            "id", "created_at", "updated_at", "my_attr")
+            "id", "created_at", "my_attr", "updated_at")
 
     def test_where_allows_arbitrary_queries(self, Repo):
         list(Query(TunaCasserole).where("my_attr == ?", 5))
         repo = Repo.return_value
         repo.where.assert_called_with([("my_attr == ?", 5)])
         repo.where.return_value.select.assert_called_with(
-            "id", "created_at", "updated_at", "my_attr")
+            "id", "created_at", "my_attr", "updated_at")
 
     def test_where_with_arbitrary_queries_allows_chaining(self, Repo):
         list(Query(TunaCasserole).where("my_attr > ?", 5).where(
@@ -83,15 +83,15 @@ class TestQuery(unittest.TestCase):
         repo.where.assert_called_with([("my_attr > ?", 5),
                                        ("my_attr < ?", 10)])
         repo.where.return_value.select.assert_called_with(
-            "id", "created_at", "updated_at", "my_attr")
+            "id", "created_at", "my_attr", "updated_at")
 
     def test_allows_ordering(self, Repo):
         list(Query(TunaCasserole).order_by(id="desc").all())
         repo = Repo.return_value
         repo.order_by.assert_called_with(id="desc")
         order = repo.order_by.return_value
-        order.select.assert_called_with("id", "created_at",
-                                        "updated_at", "my_attr")
+        order.select.assert_called_with(
+            "id", "created_at", "my_attr", "updated_at")
 
     def test_raises_on_multiple_orders(self, Repo):
         with self.assertRaises(query.QueryInvalid):
@@ -107,7 +107,7 @@ class TestQuery(unittest.TestCase):
         where.limit.assert_called_with(1)
         limit = where.limit.return_value
         limit.select.assert_called_with(
-            "id", "created_at", "updated_at", "my_attr")
+            "id", "created_at", "my_attr", "updated_at")
         select = limit.select.return_value
         select.fetchall.assert_called_once_with()
 
@@ -126,7 +126,7 @@ class TestQuery(unittest.TestCase):
         where.limit.assert_called_with(5)
         limit = where.limit.return_value
         limit.select.assert_called_with(
-            "id", "created_at", "updated_at", "my_attr")
+            "id", "created_at", "my_attr", "updated_at")
         select = limit.select.return_value
         select.fetchall.assert_called_once_with()
 
@@ -149,7 +149,7 @@ class TestQuery(unittest.TestCase):
         order.limit.assert_called_with(1)
         limit = order.limit.return_value
         limit.select.assert_called_with(
-            "id", "created_at", "updated_at", "my_attr")
+            "id", "created_at", "my_attr", "updated_at")
         select = limit.select.return_value
         select.fetchall.assert_called_once_with()
 
@@ -163,7 +163,7 @@ class TestQuery(unittest.TestCase):
         order.limit.assert_called_with(5)
         limit = order.limit.return_value
         limit.select.assert_called_with(
-            "id", "created_at", "updated_at", "my_attr")
+            "id", "created_at", "my_attr", "updated_at")
         select = limit.select.return_value
         select.fetchall.assert_called_once_with()
 
@@ -188,7 +188,7 @@ class TestQuery(unittest.TestCase):
         order.limit.assert_called_with(1)
         limit = order.limit.return_value
         limit.select.assert_called_with(
-            "id", "created_at", "updated_at", "my_attr")
+            "id", "created_at", "my_attr", "updated_at")
         select = limit.select.return_value
         select.fetchall.assert_called_once_with()
 
@@ -225,23 +225,20 @@ class TestQuery(unittest.TestCase):
 
     def test_displays_as_query_with_records(self, Repo):
         Repo.return_value.select.return_value.fetchall.return_value = [
-            (1, 7, datetime.datetime(2016, 1, 1))]
-        # Recall that TunaCasserole overrides #from_dict to return
-        # 'mytestvalue' so that is what it will repr as
-        self.assertEqual(repr(Query(TunaCasserole)),
-                     "<lazy_record.Query [{'created_at': 7, 'id': 1, "
-                     "'updated_at': datetime.datetime(2016, 1, 1, 0, 0)}]>")
+            (1, 7, 11, datetime.datetime(2016, 1, 1))]
+        self.assertNotEqual(repr(Query(TunaCasserole)),
+                     "<lazy_record.Query []>")
 
     def test_class_displays_as_though_it_was_in_lazy_record(self, Repo):
         self.assertEqual(repr(Query), "<class 'lazy_record.Query'>")
 
     def tests_inclusion(self, Repo):
         repo = Repo.return_value
-        fetchall_return = [(15, 2, 33)]
+        fetchall_return = [(15, 2, 11, 33)]
         fetchall = mock.Mock(return_value=fetchall_return)
         select_mock = mock.Mock(fetchall=fetchall)
         repo.select.return_value = mock.Mock(fetchall=fetchall)
-        self.assertIn({'created_at': 2, 'id': 15, 'updated_at': 33},
+        self.assertIn({'created_at': 2, 'id': 15, 'updated_at': 33, 'my_attr': 11},
                       Query(TunaCasserole).all())
 
     def test_len_invokes_SQL_count_function(self, Repo):
@@ -340,7 +337,7 @@ class TestRepeatedQueries(unittest.TestCase):
             repo = Repo.return_value
             repo.where.assert_called_with([], my_attr=5)
             repo.where.return_value.select.assert_called_with(
-                "id", "created_at", "updated_at", "my_attr")
+                "id", "created_at", "my_attr", "updated_at")
 
     def test_gets_last_record(self):
         q = Query(TunaCasserole).where(my_attr=5).where(id=7)
@@ -357,7 +354,7 @@ class TestRepeatedQueries(unittest.TestCase):
             where.limit.assert_called_with(1)
             limit = where.limit.return_value
             limit.select.assert_called_with(
-                "id", "created_at", "updated_at", "my_attr")
+                "id", "created_at", "my_attr", "updated_at")
             limit.select.return_value.fetchall.assert_called_once_with()
 
     def test_ordering_does_not_mutate(self):
@@ -368,8 +365,8 @@ class TestRepeatedQueries(unittest.TestCase):
             repo = Repo.return_value
             repo.order_by.assert_called_with(id="desc")
             order = repo.order_by.return_value
-            order.select.assert_called_with("id", "created_at",
-                                            "updated_at", "my_attr")
+            order.select.assert_called_with(
+                "id", "created_at", "my_attr", "updated_at")
 
 
 if __name__ == '__main__':

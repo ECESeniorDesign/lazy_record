@@ -229,7 +229,7 @@ class TestDestroyingRecordsThroughJoin(unittest.TestCase):
     def test_raises_AssociationTypeMismatch_not_correct_type(self):
         with self.assertRaises(lazy_record.AssociationTypeMismatch) as e:
             self.person.books.delete(self.person)
-        self.assertEqual(e.exception.message,
+        self.assertEqual(str(e.exception),
                          "Expected record of type Book, got Person.")
 
 class TestManyThroughOne(unittest.TestCase):
@@ -352,7 +352,7 @@ class TestAddsRecords(unittest.TestCase):
     def test_raises_AssociationTypeMismatch_not_correct_type(self):
         with self.assertRaises(lazy_record.AssociationTypeMismatch) as e:
             self.person.books.append(self.person)
-        self.assertEqual(e.exception.message,
+        self.assertEqual(str(e.exception),
                          "Expected record of type Book, got Person.")
 
     def test_sets_record_in_init(self):

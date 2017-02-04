@@ -197,9 +197,9 @@ class TestRepo(unittest.TestCase):
                                       id=(1,2)).select("*")
         db.execute.assert_called_once_with(
             "select tuna_casseroles.* from tuna_casseroles "
-            "where tuna_casseroles.name IN (?, ?, ?) "
-            "and tuna_casseroles.id IN (?, ?)",
-            ["foo", "bar", "baz", 1, 2])
+            "where tuna_casseroles.id IN (?, ?) "
+            "and tuna_casseroles.name IN (?, ?, ?)",
+            [1, 2, "foo", "bar", "baz"])
 
     def test_group_generates_group_by_clause(self, db):
         Repo("tuna_casseroles").group_by("name").select("*")

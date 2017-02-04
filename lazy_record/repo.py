@@ -102,7 +102,7 @@ class Repo(object):
         # Recursively loops through the where query to produce a list of
         # 3-tuples that contain the (table name, column, value)
         def builder(where_dict, default_table, for_in):
-            for key, value in where_dict.items():
+            for key, value in sorted(list(where_dict.items())):
                 use_in = type(value) in (tuple, list)
                 if type(value) is dict:
                     for entry in builder(value, key, for_in):

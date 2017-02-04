@@ -263,15 +263,15 @@ class TestBase(unittest.TestCase):
         m = MyModel.from_dict(name="foo")
         with self.assertRaises(lazy_record.MissingAttributeError) as e:
             m.id
-        self.assertEqual(e.exception.message,
+        self.assertEqual(str(e.exception),
                          "'MyModel' object has no attribute 'id'")
 
     def test_repr_without_timestamps(self, Query, Repo, datetime):
-        m = MyModel.from_dict(name="foo")
-        self.assertEqual(repr(m), "MyModel(name='foo')")
+        m = MyModel(name="foo")
+        self.assertEqual(repr(m), "MyModel(id=None, name='foo', created_at=None, updated_at=None)")
 
     def test_create_makes_record(self, Query, Repo, datetime):
-        with mock.patch.object(MyModel.__metaclass__, "__call__") as model:
+        with mock.patch.object(type(MyModel), "__call__") as model:
             MyModel.create(name="foo")
             Query(MyModel).create.assert_called_with(name="foo")
 

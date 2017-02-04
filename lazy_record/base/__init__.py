@@ -13,8 +13,57 @@ from inflector import Inflector, English
 
 inflector = Inflector(English)
 
+class BaseMetaClass(type):
+    def get_scope(cls, scope_name):
+        """
+        Retrieve a scope method defined in __scopes__ and set the name
+        appropriately.
+        """
+        # Fetch the scope from the __scopes__ dictionary
+        scope = cls.__scopes__[scope_name]
+        # Since the scopes defined in __scopes__ are often lambdas
+        # to give the name meaning under repr, change the name of the
+        # function to "<scope>scope_name"
+        scope.__name__ = "<scope>{}".format(scope_name)
+        return scope
 
-class Base(Validations):
+    @property
+    def __all_attributes__(cls):
+        attrs = dict(cls.__attributes__)
+        attrs.update({
+            "created_at": typecasts.datetime,
+            "updated_at": typecasts.datetime,
+        })
+        return attrs
+
+    def __len__(cls):
+        return len(Query(cls).all())
+
+    def __getattr__(cls, attr):
+        # Is the attr a scope?
+        if attr in cls.__scopes__:
+            # The attribute is a scope: fetch it, then bind it to the class
+            # This way, it is already defined on the class for the next
+            # lookup.
+            # Think of it like the method_missing + define_method idiom
+            # in Ruby (this is the define_method part).
+            # "classmethod" handles the binding of the first argument
+            setattr(cls, attr, classmethod(cls.get_scope(attr)))
+            # Having defined the method, look again: it will be found under
+            # normal object lookup
+            return getattr(cls, attr)
+        elif hasattr(Query(cls), attr):
+            return getattr(Query(cls), attr)
+        else:
+            # The attribute is not a scope: without __getattr__ defined,
+            # the behavior would be to raise AttributeError, so that's what
+            # we do here. Note that the ususal call to __getattribute__
+            # won't work, since it is not define on the metaclass. "super"
+            # won't work for the same reason.
+            raise AttributeError("'{}' has no attribute '{}'".format(
+                cls.__name__, attr))
+
+class Base(Validations, metaclass=BaseMetaClass):
     __attributes__ = {}
     __dependents__ = []
     __scopes__ = {}
@@ -191,20 +240,20 @@ class Base(Validations):
                 record._do_destroy()
         self._finish_save()
 
-    def __cmp__(self, other):
-        """
-        Compare to other records.
-        """
+    def __eq__(self, other):
         if self is other:
-            return 0
+            return True
         elif self.__class__ != other.__class__:
-            return cmp(self.__class__, other.__class__)
+            return False
         elif self.id == None:
-            return 1
+            return False
         elif other.id == None:
-            return -1
+            return False
         else:
-            return cmp(self.id, other.id)
+            return self.id == other.id
+
+    def __ne__(self, other):
+        return not self == other
 
     def __int__(self):
         """
@@ -231,54 +280,3 @@ class Base(Validations):
                 ("{}={}".format(attr, gettimestamp(self, attr))
                 for attr in ["created_at", "updated_at"]
                 if hasattr(self, attr)))))
-
-
-    class __metaclass__(type):
-        def get_scope(cls, scope_name):
-            """
-            Retrieve a scope method defined in __scopes__ and set the name
-            appropriately.
-            """
-            # Fetch the scope from the __scopes__ dictionary
-            scope = cls.__scopes__[scope_name]
-            # Since the scopes defined in __scopes__ are often lambdas
-            # to give the name meaning under repr, change the name of the
-            # function to "<scope>scope_name"
-            scope.__name__ = "<scope>{}".format(scope_name)
-            return scope
-
-        @property
-        def __all_attributes__(cls):
-            attrs = dict(cls.__attributes__)
-            attrs.update({
-                "created_at": typecasts.datetime,
-                "updated_at": typecasts.datetime,
-            })
-            return attrs
-
-        def __len__(cls):
-            return len(Query(cls).all())
-
-        def __getattr__(cls, attr):
-            # Is the attr a scope?
-            if attr in cls.__scopes__:
-                # The attribute is a scope: fetch it, then bind it to the class
-                # This way, it is already defined on the class for the next
-                # lookup.
-                # Think of it like the method_missing + define_method idiom
-                # in Ruby (this is the define_method part).
-                # "classmethod" handles the binding of the first argument
-                setattr(cls, attr, classmethod(cls.get_scope(attr)))
-                # Having defined the method, look again: it will be found under
-                # normal object lookup
-                return getattr(cls, attr)
-            elif hasattr(Query(cls), attr):
-                return getattr(Query(cls), attr)
-            else:
-                # The attribute is not a scope: without __getattr__ defined,
-                # the behavior would be to raise AttributeError, so that's what
-                # we do here. Note that the ususal call to __getattribute__
-                # won't work, since it is not define on the metaclass. "super"
-                # won't work for the same reason.
-                raise AttributeError("'{}' has no attribute '{}'".format(
-                    cls.__name__, attr))
