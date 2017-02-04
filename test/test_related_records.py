@@ -11,8 +11,8 @@ import lazy_record
 
 # INTEGRATED TEST
 
-@has_one("other_thing", through="thing")
-@has_one("thing")
+@has_one("other_thing", through="the_thing")
+@has_one("the_thing")
 @has_many("lending_tables", through="lendings")
 @has_many("people", through="lendings")
 @has_many("lendings")
@@ -27,7 +27,7 @@ class Lending(lazy_record.Base):
     pass
 
 
-@has_many("things", through="books")
+@has_many("the_things", through="books")
 @has_many("books", through="lendings")
 class Person(lazy_record.Base):
     pass
@@ -38,10 +38,10 @@ class LendingTable(lazy_record.Base):
 
 @has_one("other_thing")
 @belongs_to("book")
-class Thing(lazy_record.Base):
+class TheThing(lazy_record.Base):
     pass
 
-@belongs_to("thing")
+@belongs_to("the_thing")
 class OtherThing(lazy_record.Base):
     pass
 
@@ -88,8 +88,8 @@ create table lending_tables (
   created_at timestamp not null,
   updated_at timestamp not null
 );
-drop table if exists things;
-create table things (
+drop table if exists the_things;
+create table the_things (
   id integer primary key autoincrement,
   book_id integer,
   created_at timestamp not null,
@@ -98,7 +98,7 @@ create table things (
 drop table if exists other_things;
 create table other_things (
   id integer primary key autoincrement,
-  thing_id integer,
+  the_thing_id integer,
   created_at timestamp not null,
   updated_at timestamp not null
 );
@@ -248,8 +248,8 @@ class TestManyThroughOne(unittest.TestCase):
                                       book_id=self.book.id)
 
     def test_finds_many_through_one(self):
-        thing = Thing.create(book_id=self.book.id)
-        self.assertIn(thing, self.person.things)
+        thing = TheThing.create(book_id=self.book.id)
+        self.assertIn(thing, self.person.the_things)
 
 class TestOneToOne(unittest.TestCase):
 
@@ -257,7 +257,7 @@ class TestOneToOne(unittest.TestCase):
         lazy_record.connect_db()
         lazy_record.load_schema(test_schema)
         self.book = Book.create()
-        self.thing = Thing.create(book_id=self.book.id)
+        self.thing = TheThing.create(book_id=self.book.id)
         self.other_thing = OtherThing.create(thing_id=self.thing.id)
 
     def test_sets_to_none(self):
@@ -265,7 +265,7 @@ class TestOneToOne(unittest.TestCase):
         self.thing.save()
         self.assertEqual(self.thing.other_thing, None)
         other_thing = OtherThing.find(self.other_thing.id)
-        self.assertEqual(other_thing.thing_id, None)
+        self.assertEqual(other_thing.the_thing_id, None)
 
 class TestOneThroughOne(unittest.TestCase):
 
@@ -273,8 +273,8 @@ class TestOneThroughOne(unittest.TestCase):
         lazy_record.connect_db()
         lazy_record.load_schema(test_schema)
         self.book = Book.create()
-        self.thing = Thing.create(book_id=self.book.id)
-        self.other_thing = OtherThing.create(thing_id=self.thing.id)
+        self.thing = TheThing.create(book_id=self.book.id)
+        self.other_thing = OtherThing.create(the_thing_id=self.thing.id)
 
     def test_gets_record(self):
         self.assertEqual(self.book.other_thing, self.other_thing)
@@ -282,7 +282,7 @@ class TestOneThroughOne(unittest.TestCase):
     def test_sets_record(self):
         another_other_thing = OtherThing()
         self.book.other_thing = another_other_thing
-        self.assertEqual(another_other_thing.thing_id, self.thing.id)
+        self.assertEqual(another_other_thing.the_thing_id, self.thing.id)
         self.book.save()
         self.assertEqual(another_other_thing, self.book.other_thing)
 
@@ -292,14 +292,14 @@ class TestOneThroughOne(unittest.TestCase):
         self.book.save()
         # Need to reload the object to see the changes
         other_thing = OtherThing.find(self.other_thing.id)
-        self.assertEqual(other_thing.thing_id, None)
+        self.assertEqual(other_thing.the_thing_id, None)
 
     def test_sets_child_to_none(self):
         self.book.other_thing = None
         self.book.save()
         # Need to reload the object to see the changes
         other_thing = OtherThing.find(self.other_thing.id)
-        self.assertEqual(other_thing.thing_id, None)
+        self.assertEqual(other_thing.the_thing_id, None)
         self.assertEqual(self.book.other_thing, None)
 
     def test_gets_child_no_belongs_to(self):
