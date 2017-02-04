@@ -2,10 +2,6 @@ import unittest
 import mock
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
-sys.path.insert(0, os.path.join(
-    os.path.dirname(os.path.abspath(os.path.dirname(__file__))),
-    "lazy_record"))
 import typecasts
 import datetime
 

@@ -1,11 +1,6 @@
 import unittest
 import sys
 import os
-# This way, we pick the lazy_record local even if one is installed
-sys.path.insert(0, os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
-sys.path.insert(0, os.path.join(
-    os.path.dirname(os.path.abspath(os.path.dirname(__file__))),
-    "lazy_record"))
 from lazy_record.associations import *
 import lazy_record
 

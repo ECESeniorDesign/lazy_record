@@ -1,9 +1,11 @@
-from repo import Repo
+from lazy_record.repo import Repo
 import sys
 import os
 import types
-sys.path.insert(0, os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 from inflector import Inflector, English
+# Legacy: the contents of models used to be in associations
+import lazy_record.models as associations
+from lazy_record.errors import *
 
 inflector = Inflector(English)
 
@@ -441,7 +443,3 @@ def record_args(arg_dict):
     return {key: value
             for key, value in arg_dict.items()
             if type(value) is not dict}
-
-# Here to prevent circular import loop
-from lazy_record.errors import *
-import lazy_record.associations as associations
