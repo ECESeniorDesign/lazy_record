@@ -1,7 +1,7 @@
-from query import Query
-from base import Base
-from errors import *
-from typecasts import *
+from .query import Query
+from .base import Base
+from .errors import *
+from .typecasts import *
 
 
 __author__ = "Chase Conklin"

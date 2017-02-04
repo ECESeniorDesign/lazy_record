@@ -38,13 +38,13 @@ class TestScopes(unittest.TestCase):
         query2 = base.Query(Watermelon)
         with self.assertRaises(AttributeError) as e:
             query2.ripe()
-        self.assertEqual(e.exception.message,
+        self.assertEqual(str(e.exception),
                          "'Query' object has no attribute 'ripe'")
 
     def test_does_not_impede_attribute_lookup_on_class(self):
         with self.assertRaises(AttributeError) as e:
             Cantaloupe.turnip
-        self.assertEqual(e.exception.message,
+        self.assertEqual(str(e.exception),
                          "'Cantaloupe' has no attribute 'turnip'")
 
 if __name__ == '__main__':

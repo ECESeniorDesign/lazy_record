@@ -1,12 +1,12 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
-from query import Query
-from repo import Repo
+from lazy_record.query import Query
+from lazy_record.repo import Repo
 import datetime
 from lazy_record.errors import *
 import lazy_record.typecasts as typecasts
-from validations import Validations
+from lazy_record.base.validations import Validations
 import lazy_record.associations as associations
 from itertools import chain
 from inflector import Inflector, English

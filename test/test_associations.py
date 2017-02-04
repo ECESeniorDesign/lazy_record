@@ -348,7 +348,7 @@ class TestHasOneThroughMany(unittest.TestCase):
             class Forbidden(Base):
                 pass
 
-        self.assertEqual(e.exception.message,
+        self.assertEqual(str(e.exception),
                          "Cannot have one 'thing' through many 'test_models'")
 
 @mock.patch("lazy_record.associations.query")

@@ -2,7 +2,7 @@ import unittest
 import mock
 import sys
 import os
-import validations
+from lazy_record import validations
 
 
 class TestValidations(unittest.TestCase):
