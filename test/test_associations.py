@@ -2,6 +2,7 @@ import unittest
 import mock
 import sys
 import os
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from lazy_record.associations import *
 import lazy_record
 
