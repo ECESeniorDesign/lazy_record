@@ -2,8 +2,8 @@ import unittest
 import mock
 import sys
 import os
-import base
-from base import Base
+import lazy_record.base
+from lazy_record import Base
 import lazy_record
 
 
@@ -21,9 +21,9 @@ class MyModel(Base):
 class MyOtherModel(Base):
     pass
 
-@mock.patch("base.datetime")
-@mock.patch("base.Repo")
-@mock.patch("base.Query")
+@mock.patch("lazy_record.base.datetime")
+@mock.patch("lazy_record.base.Repo")
+@mock.patch("lazy_record.base.Query")
 class TestBase(unittest.TestCase):
 
     def test_gets_number_of_records(self, Query, Repo, datetime):
@@ -66,7 +66,7 @@ class TestBase(unittest.TestCase):
     def test_does_not_create_invalid_records(self, Query, Repo, datetime):
         Repo.table_name.return_value = "my_model"
         my_record = MyModel(name="invalid")
-        with self.assertRaises(base.RecordInvalid):
+        with self.assertRaises(lazy_record.base.RecordInvalid):
             my_record.save()
         self.assertEqual(Repo.return_value.insert.call_count, 0)
 
@@ -75,7 +75,7 @@ class TestBase(unittest.TestCase):
         my_record = MyModel(name="invalid")
         my_record._id = 3
         my_record._created_at = datetime.datetime.today.return_value
-        with self.assertRaises(base.RecordInvalid):
+        with self.assertRaises(lazy_record.base.RecordInvalid):
             my_record.save()
         self.assertEqual(Repo.return_value.update.call_count, 0)
 
@@ -281,7 +281,7 @@ class TestBase(unittest.TestCase):
         self.assertEqual(MyModel.create(), record)
 
 
-@mock.patch("base.Repo")
+@mock.patch("lazy_record.base.Repo")
 class TestBaseDestroy(unittest.TestCase):
 
     def setUp(self):

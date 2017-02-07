@@ -2,7 +2,7 @@ import unittest
 import mock
 import sys
 import os
-import typecasts
+import lazy_record.typecasts as typecasts
 import datetime
 
 

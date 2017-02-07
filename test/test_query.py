@@ -2,9 +2,9 @@ import unittest
 import mock
 import sys
 import os
-from query import Query, Repo
+from lazy_record.query import Query, Repo
 import datetime
-import query
+import lazy_record.query
 
 
 class TunaCasserole(object):
@@ -23,7 +23,7 @@ class TunaCasserole(object):
 class MyRelations(object):
     pass
 
-@mock.patch("query.Repo")
+@mock.patch("lazy_record.query.Repo")
 class TestQuery(unittest.TestCase):
 
     def test_instantiates_repo(self, Repo):
@@ -94,7 +94,7 @@ class TestQuery(unittest.TestCase):
             "id", "created_at", "my_attr", "updated_at")
 
     def test_raises_on_multiple_orders(self, Repo):
-        with self.assertRaises(query.QueryInvalid):
+        with self.assertRaises(lazy_record.query.QueryInvalid):
             q = Query(TunaCasserole).order_by(id="desc").order_by(id="asc")
             list(q.all())
 
@@ -131,11 +131,11 @@ class TestQuery(unittest.TestCase):
         select.fetchall.assert_called_once_with()
 
     def test_first_raises_if_count_is_zero(self, Repo):
-        with self.assertRaises(query.QueryInvalid):
+        with self.assertRaises(lazy_record.query.QueryInvalid):
             Query(TunaCasserole).where(my_attr=5).where(id=7).first(0)
 
     def test_last_raises_if_count_is_zero(self, Repo):
-        with self.assertRaises(query.QueryInvalid):
+        with self.assertRaises(lazy_record.query.QueryInvalid):
             Query(TunaCasserole).where(my_attr=5).where(id=7).last(0)
 
     def test_gets_last_record(self, Repo):
@@ -210,7 +210,7 @@ class TestQuery(unittest.TestCase):
         record = Query(TunaCasserole).where(my_attr=11).build(my_attr=12)
         self.assertEqual(record.my_attr, 12)
 
-    @mock.patch("query.associations.foreign_keys_for")
+    @mock.patch("lazy_record.query.associations.foreign_keys_for")
     def test_unrelates_records(self, fkf, Repo):
         fkf.return_value = {'tuna_casserole': 'tuna_casserole_id'}
         Repo.table_name.return_value = "tuna_casseroles"
@@ -304,7 +304,7 @@ class TestQuery(unittest.TestCase):
         fetchall = mock.Mock(return_value=[])
         repo.where.return_value.select.return_value = mock.Mock(
             fetchall=fetchall)
-        with self.assertRaises(query.RecordNotFound):
+        with self.assertRaises(lazy_record.query.RecordNotFound):
             Query(TunaCasserole).find(5)
         repo.where.assert_called_with([], id=5)
 
@@ -322,7 +322,7 @@ class TestQuery(unittest.TestCase):
         fetchall = mock.Mock(return_value=[])
         repo.where.return_value.limit.return_value.select.return_value = mock.Mock(
             fetchall=fetchall)
-        with self.assertRaises(query.RecordNotFound):
+        with self.assertRaises(lazy_record.query.RecordNotFound):
             Query(TunaCasserole).find_by(name="foo")
         repo.where.assert_called_with([], name="foo")
 
@@ -330,7 +330,7 @@ class TestQuery(unittest.TestCase):
 class TestRepeatedQueries(unittest.TestCase):
 
     def test_where_does_not_mutate_query(self):
-        with mock.patch("query.Repo") as Repo:
+        with mock.patch("lazy_record.query.Repo") as Repo:
             q = Query(TunaCasserole).where(my_attr=5)
             q.where(my_attr=3)
             list(q)
@@ -341,10 +341,10 @@ class TestRepeatedQueries(unittest.TestCase):
 
     def test_gets_last_record(self):
         q = Query(TunaCasserole).where(my_attr=5).where(id=7)
-        with mock.patch("query.Repo") as Repo:
+        with mock.patch("lazy_record.query.Repo") as Repo:
             repo = Repo.return_value
             record = q.last()
-        with mock.patch("query.Repo") as Repo:
+        with mock.patch("lazy_record.query.Repo") as Repo:
             repo = Repo.return_value
             record_2 = q.first()
             self.assertEqual({}, record_2)
@@ -358,7 +358,7 @@ class TestRepeatedQueries(unittest.TestCase):
             limit.select.return_value.fetchall.assert_called_once_with()
 
     def test_ordering_does_not_mutate(self):
-        with mock.patch("query.Repo") as Repo:
+        with mock.patch("lazy_record.query.Repo") as Repo:
             q = Query(TunaCasserole)
             q.order_by(id="asc")
             list(q.order_by(id="desc"))

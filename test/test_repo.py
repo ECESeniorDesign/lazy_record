@@ -2,22 +2,22 @@ import unittest
 import mock
 import sys
 import os
-from repo import Repo
-import repo
+from lazy_record.repo import Repo
+import lazy_record.repo as repo
 
 
 class TunaCasserole(object):
     pass
 
 
-@mock.patch("repo.Repo.db")
+@mock.patch("lazy_record.repo.Repo.db")
 class TestRepo(unittest.TestCase):
 
     def test_gets_table_name(self, _):
         table_name = Repo.table_name(TunaCasserole)
         self.assertEqual("tuna_casseroles", table_name)
 
-    @mock.patch("repo.sqlite3")
+    @mock.patch("lazy_record.repo.sqlite3")
     def test_connects_database(self, sqlite3, db):
         repo.Repo.connect_db("my_db")
         sqlite3.connect.assert_called_with("my_db",

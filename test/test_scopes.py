@@ -2,7 +2,7 @@ import unittest
 import mock
 import sys
 import os
-import base
+import lazy_record.base as base
 
 
 class Cantaloupe(base.Base):
@@ -15,7 +15,7 @@ class Watermelon(base.Base):
 
 class TestScopes(unittest.TestCase):
 
-    @mock.patch("base.Query")
+    @mock.patch("lazy_record.base.Query")
     def test_defines_class_method_on_model(self, Query):
         Cantaloupe.ripe()
         Query.assert_called_with(Cantaloupe)
@@ -25,13 +25,13 @@ class TestScopes(unittest.TestCase):
     def test_class_method_has_reasonable_signature(self):
         self.assertEqual(Cantaloupe.ripe.__name__, "<scope>ripe")
 
-    @mock.patch("base.Query.where")
+    @mock.patch("lazy_record.base.Query.where")
     def test_defines_method_on_classes_queries(self, where):
         query = base.Query(Cantaloupe)
         query.ripe()
         where.assert_called_with(ripe=1)
 
-    @mock.patch("base.Query.where")
+    @mock.patch("lazy_record.base.Query.where")
     def test_does_not_define_method_on_other_queries(self, where):
         query = base.Query(Cantaloupe)
         query.ripe()
