@@ -26,7 +26,7 @@ def model_has_foreign_key_for_table(table, model):
     fk = foreign_keys_for(model).get(inflector.singularize(table), None)
     if fk is None:
         return True
-    return fk in model.__attributes__
+    return fk in model._attributes()
 
 def foreign_keys_for(klass):
     if type(klass) == str:

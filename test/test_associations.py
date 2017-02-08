@@ -9,9 +9,13 @@ import lazy_record
 
 class Base(object):
     __dependents__ = []
-    __attributes__ = {}
     def __init__(self):
         self._related_records = []
+    @classmethod
+    def _attributes(self):
+        return {"id": mock.Mock(cast=int),
+                "created_at": mock.Mock(cast=lambda x: x),
+                "updated_at": mock.Mock(cast=lambda x: x)}
 
 
 @has_many("comments")
@@ -26,6 +30,10 @@ class Post(Base):
 @belongs_to("post")
 @has_many("test_models")
 class Comment(Base):
+    @classmethod
+    def _attributes(self):
+        base = super(Comment, self)._attributes()
+        return {**base, "post_id": mock.Mock(cast=int)}
 
     def foo(self):
         return "bar"
@@ -39,13 +47,20 @@ class Comment(Base):
 @belongs_to("comment")
 @belongs_to("post", foreign_key="postId")
 class TestModel(Base):
-    pass
-
+    @classmethod
+    def _attributes(self):
+        base = super(TestModel, self)._attributes()
+        return {**base, "postId": mock.Mock(cast=int),
+                "comment_id": mock.Mock(cast=int)}
 
 @belongs_to("post")
 @belongs_to("tag")
 class Tagging(Base):
-    pass
+    @classmethod
+    def _attributes(self):
+        base = super(Tagging, self)._attributes()
+        return {**base, "post_id": mock.Mock(cast=int),
+                "tag_id": mock.Mock(cast=int)}
 
 
 @has_many("another_things")
@@ -56,11 +71,17 @@ class Tag(Base):
 @has_one("other_thang", foreign_key="thingId")
 @belongs_to("test_model")
 class Thing(Base):
-    pass
+    @classmethod
+    def _attributes(self):
+        base = super(Thing, self)._attributes()
+        return {**base, "test_model_id": mock.Mock(cast=int)}
 
 @belongs_to("thing", foreign_key="thingId")
 class OtherThang(Base):
-    pass
+    @classmethod
+    def _attributes(self):
+        base = super(OtherThang, self)._attributes()
+        return {**base, "thingId": mock.Mock(cast=int)}
 
 class AnotherThing(Base):
     pass
@@ -128,10 +149,6 @@ class TestBelongsTo(unittest.TestCase):
         query.Query.assert_called_with(Comment)
         q.where.assert_called_with(id=17)
         q2.first.assert_called_with()
-
-    def test_adds_foreign_key_to_attributes(self, query):
-        self.assertEqual(TestModel.__attributes__["postId"], int)
-        self.assertEqual(Comment.__attributes__["post_id"], int)
 
     def test_does_not_add_parent_as_dependents(self, query):
         self.assertNotIn("post", Comment.__dependents__)

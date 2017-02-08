@@ -9,7 +9,6 @@ import lazy_record.query
 
 
 class TunaCasserole(object):
-    __all_attributes__ = {"my_attr": int, "created_at": int, "updated_at":int}
     __scopes__ = {}
 
     def __init__(self, **kwargs):
@@ -20,6 +19,13 @@ class TunaCasserole(object):
     @classmethod
     def from_dict(TunaCasserole, **kwargs):
         return kwargs
+
+    @classmethod
+    def _attributes(self):
+        return {"id": mock.Mock(cast=int),
+                "created_at": mock.Mock(cast=lambda x: x),
+                "updated_at": mock.Mock(cast=lambda x: x),
+                "my_attr": mock.Mock(cast=int)}
 
 class MyRelations(object):
     pass

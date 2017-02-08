@@ -20,7 +20,8 @@ class ExampleSchema(schema.Schema):
 @mock.patch("lazy_record.schema.repo")
 class TestSchema(unittest.TestCase):
     def test_create_table(self, repo):
-        schema.load(ExampleSchema)
+        schema.tables = {}
+        schema.execute(ExampleSchema)
         repo.Repo.db.__enter__.assert_called_with()
         db = repo.Repo.db.__enter__.return_value
         script = "\n".join([

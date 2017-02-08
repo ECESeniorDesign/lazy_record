@@ -45,7 +45,7 @@ class Query(object, metaclass=QueryMetaclass):
         self._order_with = {}
         self.group_column = None
         self.limit_count = None
-        self.attributes = ["id"] + sorted(list(self.model.__all_attributes__))
+        self.attributes = ["id"] + sorted(list(set(self.model._attributes()) - {"id"}))
         self.table = Repo.table_name(self.model)
 
     def copy(self):

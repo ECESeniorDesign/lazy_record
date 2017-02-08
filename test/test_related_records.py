@@ -56,76 +56,46 @@ class Joiner(lazy_record.Base):
 class EndTwo(lazy_record.Base):
     pass
 
-test_schema = """
-drop table if exists people;
-create table people (
-  id integer primary key autoincrement,
-  created_at timestamp not null,
-  updated_at timestamp not null
-);
-drop table if exists lendings;
-create table lendings (
-  id integer primary key autoincrement,
-  person_id integer not null,
-  book_id integer not null,
-  created_at timestamp not null,
-  updated_at timestamp not null
-);
-drop table if exists books;
-create table books (
-  id integer primary key autoincrement,
-  created_at timestamp not null,
-  updated_at timestamp not null
-);
-drop table if exists lending_tables;
-create table lending_tables (
-  id integer primary key autoincrement,
-  lending_id integer,
-  created_at timestamp not null,
-  updated_at timestamp not null
-);
-drop table if exists the_things;
-create table the_things (
-  id integer primary key autoincrement,
-  book_id integer,
-  created_at timestamp not null,
-  updated_at timestamp not null
-);
-drop table if exists other_things;
-create table other_things (
-  id integer primary key autoincrement,
-  the_thing_id integer,
-  created_at timestamp not null,
-  updated_at timestamp not null
-);
-drop table if exists end_ones;
-create table end_ones (
-  id integer primary key autoincrement,
-  created_at timestamp not null,
-  updated_at timestamp not null
-);
-drop table if exists end_twos;
-create table end_twos (
-  id integer primary key autoincrement,
-  created_at timestamp not null,
-  updated_at timestamp not null
-);
-drop table if exists joiners;
-create table joiners (
-  id integer primary key autoincrement,
-  end_one_id integer,
-  end_two_id integer,
-  created_at timestamp not null,
-  updated_at timestamp not null
-)
-"""
+class test_schema(lazy_record.Schema):
 
+    def up(self):
+        with self.createTable("people") as t:
+            pass
+        with self.createTable("lendings") as t:
+            t.integer("person_id", null=False)
+            t.integer("book_id", null=False)
+        with self.createTable("books") as t:
+            pass
+        with self.createTable("lending_tables") as t:
+            t.integer("lending_id")
+        with self.createTable("the_things") as t:
+            t.integer("book_id")
+        with self.createTable("other_things") as t:
+            t.integer("the_thing_id")
+        with self.createTable("end_ones") as t:
+            pass
+        with self.createTable("end_twos") as t:
+            pass
+        with self.createTable("joiners") as t:
+            t.integer("end_one_id")
+            t.integer("end_two_id")
+
+    def down(self):
+        self.dropTable("people")
+        self.dropTable("lendings")
+        self.dropTable("books")
+        self.dropTable("lending_tables")
+        self.dropTable("the_things")
+        self.dropTable("other_things")
+        self.dropTable("end_ones")
+        self.dropTable("end_twos")
+        self.dropTable("joiners")
 
 class TestGettingRecordsThroughJoin(unittest.TestCase):
 
     def setUp(self):
         lazy_record.connect_db()
-        lazy_record.load_schema(test_schema)
+        lazy_record.execute_schema(test_schema)
         self.person = Person.create()
         self.book = Book.create()
         self.lending = Lending.create(person_id=self.person.id,
@@ -169,7 +139,7 @@ class TestBuildingRecordsThroughJoin(unittest.TestCase):
 
     def setUp(self):
         lazy_record.connect_db()
-        lazy_record.load_schema(test_schema)
+        lazy_record.execute_schema(test_schema)
         self.person = Person()
         self.person.save()
 
@@ -187,7 +157,7 @@ class TestDestroyingRecordsThroughJoin(unittest.TestCase):
 
     def setUp(self):
         lazy_record.connect_db()
-        lazy_record.load_schema(test_schema)
+        lazy_record.execute_schema(test_schema)
         self.person = Person()
         self.person.save()
         self.book = Book()
@@ -237,7 +207,7 @@ class TestManyThroughOne(unittest.TestCase):
 
     def setUp(self):
         lazy_record.connect_db()
-        lazy_record.load_schema(test_schema)
+        lazy_record.execute_schema(test_schema)
         self.person = Person.create()
         self.book = Book.create()
         self.lending = Lending.create(person_id=self.person.id,
@@ -251,7 +221,7 @@ class TestOneToOne(unittest.TestCase):
 
     def setUp(self):
         lazy_record.connect_db()
-        lazy_record.load_schema(test_schema)
+        lazy_record.execute_schema(test_schema)
         self.book = Book.create()
         self.thing = TheThing.create(book_id=self.book.id)
         self.other_thing = OtherThing.create(thing_id=self.thing.id)
@@ -267,7 +237,7 @@ class TestOneThroughOne(unittest.TestCase):
 
     def setUp(self):
         lazy_record.connect_db()
-        lazy_record.load_schema(test_schema)
+        lazy_record.execute_schema(test_schema)
         self.book = Book.create()
         self.thing = TheThing.create(book_id=self.book.id)
         self.other_thing = OtherThing.create(the_thing_id=self.thing.id)
@@ -328,7 +298,7 @@ class TestAddsRecords(unittest.TestCase):
 
     def setUp(self):
         lazy_record.connect_db()
-        lazy_record.load_schema(test_schema)
+        lazy_record.execute_schema(test_schema)
         self.person = Person()
         self.person.save()
         self.book = Book()

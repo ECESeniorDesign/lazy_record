@@ -66,12 +66,6 @@ class belongs_to(object):
         # Add setter and getter to class as properties
         setattr(klass, self.parent_name,
                 property(parent_record_getter, parent_record_setter))
-        # Add the foreign key to the attribute dict of the model
-        # Doing so in such a way as to not mutate the dict, otherwise it can
-        # override the value in lazy_record.Base (and thus all models)
-        new_attributes = dict(klass.__attributes__)
-        new_attributes[self.foreign_key] = int
-        klass.__attributes__ = new_attributes
         return klass
 
 

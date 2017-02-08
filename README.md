@@ -19,23 +19,18 @@ The first line makes lazy_record avaliable within your scope, and the second lin
 
 # Models
 
-Lazy Record Models inherit from `lazy_record.Base`. Furthermore, they need to define the `__attributes__` class variable to
-reflect their database schema (it is assumed empty if not defined). An example schema and model is included below:
-
-```sql
-CREATE TABLE entries (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT,
-    created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL
-);
-```
+Lazy Record Models inherit from `lazy_record.Base`. They determine their attributes from their schema. An example schema and model is included below:
 
 ```python
+class ExampleSchema(lazy_record.Schema):
+    def up(self):
+        with self.createTable("entries") as t:
+            t.string("name")
+    def down(self):
+        self.dropTable("entries")
+
 class Entry(lazy_record.Base):
-    __attributes__ = {
-        "name": str
-    }
+    pass
 ```
 
 ## Saving and Querying
@@ -70,9 +65,6 @@ Example (validate name is all lowercase):
 
 ```python
 class Entry(lazy_record.Base):
-    __attributes__ = {
-        "name": str
-    }
     __validates__ = {
         "name": lambda record: record.name == record.name.lower()
     }

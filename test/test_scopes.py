@@ -10,9 +10,18 @@ class Cantaloupe(base.Base):
     __scopes__ = {
         "ripe": lambda query: query.where(ripe=1)
     }
+    @classmethod
+    def _attributes(self):
+        return {"id": mock.Mock(cast=int),
+                "created_at": mock.Mock(cast=lambda x: x),
+                "updated_at": mock.Mock(cast=lambda x: x)}
 
 class Watermelon(base.Base):
-    pass
+    @classmethod
+    def _attributes(self):
+        return {"id": mock.Mock(cast=int),
+                "created_at": mock.Mock(cast=lambda x: x),
+                "updated_at": mock.Mock(cast=lambda x: x)}
 
 class TestScopes(unittest.TestCase):
 

@@ -4,17 +4,25 @@ from lazy_record.typecasts import datetime
 tables = {}
 
 class Schema:
-    def __init__(self, db, tables):
+    def __init__(self, db, tables, execute=True):
         self.db = db
         self.tables = tables # Dictionary
+        self.execute = execute
+
+    def create(self):
+        self.up()
+        script = "\n".join(table.script for table in self.tables.values())
+        if self.execute:
+            self.db.executescript(script)
 
     def createTable(self, name):
-        table = Table(name, self.db)
+        table = Table(name)
         self.tables[name] = table
         return table
 
     def dropTable(self, name):
-        self.db.executescript("drop table {};".format(name))
+        if self.execute:
+            self.db.executescript("drop table {};".format(name))
         del self.tables[name]
 
 class Table:
@@ -24,10 +32,10 @@ class Table:
         "float": "real",
         "timestamp": "timestamp",
     }
-    def __init__(self, name, db):
+    def __init__(self, name):
         self.name = name
-        self.db = db
         self.columns = []
+        script = None
 
     def __getattr__(self, attr):
         def column(name, default=None, null=True):
@@ -50,7 +58,7 @@ class Table:
             "  " + ",\n  ".join(str(col) for col in self.columns),
             ");"
         ]
-        self.db.executescript("\n".join(lines))
+        self.script = "\n".join(lines)
         self.columns.append(
             Column("id", "integer", None, False)
         )
@@ -97,9 +105,12 @@ def columns_for(table_name):
     table = tables[table_name]
     return {col.name: col for col in table.columns}
 
-def load(schema):
+def execute(schema):
     with repo.Repo.db as db:
-        schema(db, tables).up()
+        schema(db, tables).create()
+
+def load(schema):
+    schema(None, tables, execute=False).create()
 
 def drop(schema):
     with repo.Repo.db as db:

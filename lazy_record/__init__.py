@@ -2,7 +2,7 @@ from .query import Query
 from .base import Base
 from .errors import *
 from .typecasts import *
-
+from .schema import Schema
 
 __author__ = "Chase Conklin"
 
@@ -28,10 +28,16 @@ def close_db():
     base.Repo.db = None
     query.Repo.db = None
 
-def load_schema(schema):
+def load_schema(sch):
     """
-    Load a schema file with path +schema+ into the database. Assumes that
-    there exists an active database connection.
+    Load a schema object.
     """
-    with repo.Repo.db:
-        repo.Repo.db.executescript(schema)
+    schema.tables = {}
+    schema.load(sch)
+
+def execute_schema(sch):
+    """
+    Load a schema object.
+    """
+    schema.tables = {}
+    schema.execute(sch)

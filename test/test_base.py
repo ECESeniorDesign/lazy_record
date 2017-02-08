@@ -9,9 +9,6 @@ import lazy_record
 
 
 class MyModel(Base):
-    __attributes__ = {
-        "name": str,
-    }
     __validates__ = {
         "name": lambda record: record.name != "invalid"
     }
@@ -19,8 +16,23 @@ class MyModel(Base):
     def my_childs():
         pass
 
+    @classmethod
+    def _attributes(self):
+        return {
+            "id": mock.Mock(cast=int),
+            "name": mock.Mock(cast=str),
+            "created_at": mock.Mock(cast=lazy_record.datetime),
+            "updated_at": mock.Mock(cast=lazy_record.datetime)
+        }
+
 class MyOtherModel(Base):
-    pass
+    @classmethod
+    def _attributes(self):
+        return {
+            "id": mock.Mock(cast=int),
+            "created_at": mock.Mock(cast=lazy_record.datetime),
+            "updated_at": mock.Mock(cast=lazy_record.datetime)
+        }
 
 @mock.patch("lazy_record.base.datetime")
 @mock.patch("lazy_record.base.Repo")
