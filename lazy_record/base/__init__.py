@@ -44,16 +44,17 @@ class BaseMetaClass(type):
             # Having defined the method, look again: it will be found under
             # normal object lookup
             return getattr(cls, attr)
-        elif hasattr(Query(cls), attr):
-            return getattr(Query(cls), attr)
         else:
-            # The attribute is not a scope: without __getattr__ defined,
-            # the behavior would be to raise AttributeError, so that's what
-            # we do here. Note that the ususal call to __getattribute__
-            # won't work, since it is not define on the metaclass. "super"
-            # won't work for the same reason.
-            raise AttributeError("'{}' has no attribute '{}'".format(
-                cls.__name__, attr))
+            try:
+                return getattr(Query(cls), attr)
+            except AttributeError:
+                # The attribute is not a scope: without __getattr__ defined,
+                # the behavior would be to raise AttributeError, so that's what
+                # we do here. Note that the ususal call to __getattribute__
+                # won't work, since it is not define on the metaclass. "super"
+                # won't work for the same reason.
+                raise AttributeError("'{}' has no attribute '{}'".format(
+                    cls.__name__, attr))
 
 class Base(Validations, metaclass=BaseMetaClass):
     __dependents__ = []
@@ -249,15 +250,19 @@ class Base(Validations, metaclass=BaseMetaClass):
         def gettimestamp(obj, attr):
             if getattr(obj, attr):
                 return str(getattr(obj, attr).replace(microsecond=0))
-        non_ts_attrs = set(type(self)._attributes()) - {"id", "created_at", "updated_at"}
-
+        def format_attributes():
+            non_ts_attrs = list(set(type(self)._attributes()) -
+                                {"id", "created_at", "updated_at"})
+            for attr in ["id"] + non_ts_attrs:
+                try:
+                    yield "{}={!r}".format(attr, getattr(self, attr))
+                except (AttributeError, MissingAttributeError):
+                    pass
+            for attr in ["created_at", "updated_at"]:
+                try:
+                    yield "{}={}".format(attr, gettimestamp(self, attr))
+                except (AttributeError, MissingAttributeError):
+                    pass
         return "{}({})".format(
-            self.__class__.__name__,
-            ", ".join(chain(
-                ("{}={!r}".format(attr, getattr(self, attr))
-                for attr in ["id"] + list(non_ts_attrs)
-                if hasattr(self, attr)),
-
-                ("{}={}".format(attr, gettimestamp(self, attr))
-                for attr in ["created_at", "updated_at"]
-                if hasattr(self, attr)))))
+            type(self).__name__,
+            ", ".join(format_attributes()))
