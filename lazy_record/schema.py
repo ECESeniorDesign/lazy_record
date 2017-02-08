@@ -31,6 +31,7 @@ class Table:
         "integer": "integer",
         "float": "real",
         "timestamp": "timestamp",
+        "boolean": "integer",
     }
     def __init__(self, name):
         self.name = name
@@ -68,7 +69,8 @@ class Column:
         "string": str,
         "integer": int,
         "float": float,
-        "timestamp": datetime
+        "timestamp": datetime,
+        "boolean": bool,
     }
     def __init__(self, name, kind, default, null):
         self.name = name
