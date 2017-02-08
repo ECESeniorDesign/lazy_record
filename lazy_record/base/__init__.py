@@ -59,6 +59,7 @@ class Base(Validations, metaclass=BaseMetaClass):
     __dependents__ = []
     __scopes__ = {}
     __test__ = None
+    _attribute_values = None
 
     def __init__(self, **kwargs):
         """
@@ -166,8 +167,10 @@ class Base(Validations, metaclass=BaseMetaClass):
 
     @classmethod
     def _attributes(cls):
-        table = Repo.table_name(cls)
-        return schema.columns_for(table)
+        if cls._attribute_values is None:
+            table = Repo.table_name(cls)
+            cls._attribute_values = schema.columns_for(table)
+        return cls._attribute_values
 
     def destroy(self):
         """
